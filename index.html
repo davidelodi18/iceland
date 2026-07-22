@@ -70,18 +70,18 @@ const {
    funziona comunque in locale su questo dispositivo.
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey: "INSERISCI_API_KEY",
-  authDomain: "TUO-PROGETTO.firebaseapp.com",
-  databaseURL: "https://TUO-PROGETTO-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "TUO-PROGETTO",
-  storageBucket: "TUO-PROGETTO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxx"
+  apiKey: "AIzaSyCch2Q8Uks7s1qTBGVsGD1eoKefMoxEgzY",
+  authDomain: "iceland-db6d2.firebaseapp.com",
+  databaseURL: "https://iceland-db6d2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "iceland-db6d2",
+  storageBucket: "iceland-db6d2.firebasestorage.app",
+  messagingSenderId: "180943182891",
+  appId: "1:180943182891:web:c4d34441c2684ddd2d9e6e"
 };
 const DB_PATH = "viaggioIslanda"; // nodo dedicato a questo viaggio
 
 /* ---------- persistenza: Firebase se configurato, altrimenti localStorage ---------- */
-const firebaseEnabled = !FIREBASE_CONFIG.databaseURL.includes("TUO-PROGETTO");
+const firebaseEnabled = !!(FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL.indexOf("TUO-PROGETTO") === -1);
 let dbRef = null;
 if (firebaseEnabled) {
   try {
