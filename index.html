@@ -81,7 +81,7 @@ const FIREBASE_CONFIG = {
 const DB_PATH = "viaggioIslanda"; // nodo dedicato a questo viaggio
 
 /* ---------- persistenza: Firebase se configurato, altrimenti localStorage ---------- */
-const firebaseEnabled = !!(FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL.indexOf("TUO-PROGETTO") === -1);
+const firebaseEnabled = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf("INSERISCI") === -1);
 let dbRef = null;
 if (firebaseEnabled) {
   try {
@@ -97,11 +97,13 @@ const EMPTY = {
     tripName: "Islanda",
     nameA: "Davide",
     nameB: "",
-    currency: "ISK"
+    currency: "ISK",
+    eurIsk: 150
   },
   stops: {},
   stays: {},
-  expenses: {}
+  expenses: {},
+  categories: ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Altro"]
 };
 function loadLocal() {
   try {
@@ -126,6 +128,7 @@ let fmtCur = new Intl.NumberFormat("is-IS", {
   maximumFractionDigits: 0
 });
 let curCode = "ISK";
+let curRate = 150; // corone (ISK) per 1 EUR — modificabile nelle impostazioni
 function setCurrency(code) {
   curCode = CURRENCIES[code] ? code : "ISK";
   fmtCur = new Intl.NumberFormat(curCode === "ISK" ? "is-IS" : "it-IT", {
@@ -134,8 +137,27 @@ function setCurrency(code) {
     maximumFractionDigits: curCode === "ISK" ? 0 : 2
   });
 }
+function fmtOf(code) {
+  const c = CURRENCIES[code] ? code : "ISK";
+  return new Intl.NumberFormat(c === "ISK" ? "is-IS" : "it-IT", {
+    style: "currency",
+    currency: c,
+    maximumFractionDigits: c === "ISK" ? 0 : 2
+  });
+}
 const money = n => fmtCur.format(Number(n) || 0);
+const moneyIn = (n, code) => fmtOf(code || curCode).format(Number(n) || 0);
 const sym = () => CURRENCIES[curCode] || "kr";
+const symOf = code => CURRENCIES[code] || "kr";
+// converte un importo dalla sua valuta a quella base (per saldo e totali)
+function toBase(amount, cur) {
+  amount = Number(amount) || 0;
+  const base = curCode;
+  if (!cur || cur === base) return amount;
+  const toISK = (a, c) => c === "EUR" ? a * curRate : a; // EUR -> ISK
+  const fromISK = (a, c) => c === "EUR" ? a / curRate : a; // ISK -> EUR
+  return fromISK(toISK(amount, cur), base);
+}
 
 /* ---------- utils ---------- */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -151,7 +173,7 @@ function nightsBetween(a, b) {
   const d = (new Date(b) - new Date(a)) / 86400000;
   return d > 0 ? Math.round(d) : 0;
 }
-const CATS = ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Altro"];
+const DEFAULT_CATS = ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Altro"];
 
 /* ---------- geocoding + routing gratuiti (OpenStreetMap / OSRM) ---------- */
 async function geocode(q) {
@@ -184,11 +206,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
    APP
    ============================================================ */
 function App() {
-  const [data, setData] = useState(firebaseEnabled ? null : loadLocal());
+  const [data, setData] = useState(firebaseEnabled && dbRef ? null : loadLocal());
   const [tab, setTab] = useState("itinerario");
   const [showSettings, setShowSettings] = useState(false);
   useEffect(() => {
-    if (!firebaseEnabled) {
+    if (!firebaseEnabled || !dbRef) {
       return;
     }
     const cb = dbRef.on("value", snap => {
@@ -202,7 +224,7 @@ function App() {
   }, []);
   function commit(next) {
     setData(next);
-    if (firebaseEnabled) {
+    if (firebaseEnabled && dbRef) {
       dbRef.set(next).catch(e => console.error(e));
     } else {
       localStorage.setItem(LS_KEY, JSON.stringify(next));
@@ -219,6 +241,7 @@ function App() {
   }
   const s = data.settings || EMPTY.settings;
   setCurrency(s.currency || "ISK"); // aggiorna la valuta prima che i figli renderizzino
+  curRate = Number(s.eurIsk) > 0 ? Number(s.eurIsk) : 150;
   const A = s.nameA?.trim() || "Persona A";
   const B = s.nameB?.trim() || "Persona B";
   return /*#__PURE__*/React.createElement("div", {
@@ -226,7 +249,7 @@ function App() {
   }, /*#__PURE__*/React.createElement(Header, {
     s: s,
     onSettings: () => setShowSettings(true),
-    online: firebaseEnabled
+    online: firebaseEnabled && !!dbRef
   }), /*#__PURE__*/React.createElement("main", {
     className: "max-w-2xl mx-auto px-4"
   }, tab === "itinerario" && /*#__PURE__*/React.createElement(Itinerario, {
@@ -725,7 +748,8 @@ function Alloggi({
       stays: n
     });
   };
-  const totCost = stays.reduce((t, s) => t + (Number(s.cost) || 0), 0);
+  const totCost = stays.reduce((t, s) => t + toBase(s.cost, s.curr), 0);
+  const totDaPagare = stays.reduce((t, s) => t + (s.paidBy === "none" ? toBase(s.cost, s.curr) : 0), 0);
   const totNights = stays.reduce((t, s) => t + nightsBetween(s.checkIn, s.checkOut), 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
@@ -750,12 +774,15 @@ function Alloggi({
     onUpdate: p => upd(s.id, p),
     onRemove: () => del(s.id)
   })), stays.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "mt-2 grid grid-cols-2 gap-3"
+    className: "mt-2 grid gap-3 " + (totDaPagare > 0 ? "grid-cols-3" : "grid-cols-2")
   }, /*#__PURE__*/React.createElement(Stat, {
     label: "Costo alloggi",
     value: money(totCost)
+  }), totDaPagare > 0 && /*#__PURE__*/React.createElement(Stat, {
+    label: "Da pagare",
+    value: money(totDaPagare)
   }), /*#__PURE__*/React.createElement(Stat, {
-    label: "Notti prenotate",
+    label: "Notti",
     value: `${totNights}`
   })));
 }
@@ -783,7 +810,9 @@ function StayCard({
     className: "text-right"
   }, /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[14px] text-ink"
-  }, s.cost ? money(s.cost) : "—"), s.paidBy && /*#__PURE__*/React.createElement("div", {
+  }, s.cost ? moneyIn(s.cost, s.curr) : "—"), s.paidBy === "none" ? /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-copper"
+  }, "Da pagare") : s.paidBy && /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-slate"
   }, "paga ", s.paidBy === "A" ? A : B))), open && /*#__PURE__*/React.createElement("div", {
     className: "mt-3 pt-3 border-t border-hair fade grid grid-cols-2 gap-3"
@@ -822,7 +851,9 @@ function StayCard({
     }),
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Costo " + sym()
+    label: "Costo"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1"
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     step: "0.01",
@@ -831,12 +862,18 @@ function StayCard({
       cost: e.target.value === "" ? "" : +e.target.value
     }),
     className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
+  }), /*#__PURE__*/React.createElement(CurrSelect, {
+    value: s.curr || curCode,
+    onChange: v => onUpdate({
+      curr: v
+    })
+  }))), /*#__PURE__*/React.createElement(Field, {
     label: "Pagato da"
   }, /*#__PURE__*/React.createElement(PaidBy, {
-    value: s.paidBy,
+    value: s.paidBy || "none",
     A: A,
     B: B,
+    allowNone: true,
     onChange: v => onUpdate({
       paidBy: v
     })
@@ -881,7 +918,8 @@ function StayForm({
     checkIn: "",
     checkOut: "",
     cost: "",
-    paidBy: "A",
+    curr: curCode,
+    paidBy: "none",
     splitA: 50,
     url: ""
   });
@@ -920,19 +958,25 @@ function StayForm({
     onChange: e => set("checkOut", e.target.value),
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Costo " + sym()
+    label: "Costo"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1"
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     step: "0.01",
     value: f.cost,
     onChange: e => set("cost", e.target.value === "" ? "" : +e.target.value),
     className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
+  }), /*#__PURE__*/React.createElement(CurrSelect, {
+    value: f.curr,
+    onChange: v => set("curr", v)
+  }))), /*#__PURE__*/React.createElement(Field, {
     label: "Pagato da"
   }, /*#__PURE__*/React.createElement(PaidBy, {
     value: f.paidBy,
     A: A,
     B: B,
+    allowNone: true,
     onChange: v => set("paidBy", v)
   })), /*#__PURE__*/React.createElement("div", {
     className: "col-span-2"
@@ -961,7 +1005,9 @@ function Spese({
   B
 }) {
   const exp = toArr(data.expenses).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const cats = data.categories && data.categories.length ? data.categories : DEFAULT_CATS;
   const [adding, setAdding] = useState(false);
+  const [manage, setManage] = useState(false);
   const add = v => {
     commit({
       ...data,
@@ -992,18 +1038,32 @@ function Spese({
       expenses: n
     });
   };
+  const addCat = name => {
+    const c = (name || "").trim();
+    if (c && !cats.includes(c)) commit({
+      ...data,
+      categories: [...cats, c]
+    });
+  };
   const tot = exp.reduce((t, e) => t + (Number(e.amount) || 0), 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     title: "Spese",
     note: money(tot)
-  }), /*#__PURE__*/React.createElement("button", {
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mb-4"
+  }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setAdding(true),
-    className: "w-full mb-4 text-[13px] font-medium rounded-xl border border-hair bg-card text-moss py-2.5 active:scale-[.99] transition"
-  }, "+ Spesa"), adding && /*#__PURE__*/React.createElement(ExpenseForm, {
+    className: "flex-1 text-[13px] font-medium rounded-xl border border-hair bg-card text-moss py-2.5 active:scale-[.99] transition"
+  }, "+ Spesa"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setManage(true),
+    className: "px-4 text-[13px] font-medium rounded-xl border border-hair bg-card text-slate py-2.5 active:scale-[.99] transition"
+  }, "Categorie")), adding && /*#__PURE__*/React.createElement(ExpenseForm, {
     A: A,
     B: B,
+    cats: cats,
+    onAddCat: addCat,
     onSave: add,
     onCancel: () => setAdding(false)
   }), exp.length === 0 && !adding && /*#__PURE__*/React.createElement(Empty, {
@@ -1013,14 +1073,23 @@ function Spese({
     e: e,
     A: A,
     B: B,
+    cats: cats,
+    onAddCat: addCat,
     onUpdate: p => upd(e.id, p),
     onRemove: () => del(e.id)
-  })));
+  })), manage && /*#__PURE__*/React.createElement(CategoryManager, {
+    data: data,
+    cats: cats,
+    commit: commit,
+    onClose: () => setManage(false)
+  }));
 }
 function ExpenseRow({
   e,
   A,
   B,
+  cats,
+  onAddCat,
   onUpdate,
   onRemove
 }) {
@@ -1059,15 +1128,14 @@ function ExpenseRow({
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
     label: "Categoria"
-  }, /*#__PURE__*/React.createElement("select", {
+  }, /*#__PURE__*/React.createElement(CatSelect, {
     value: e.category || "Altro",
-    onChange: ev => onUpdate({
-      category: ev.target.value
-    }),
-    className: inp
-  }, CATS.map(c => /*#__PURE__*/React.createElement("option", {
-    key: c
-  }, c)))), /*#__PURE__*/React.createElement(Field, {
+    cats: cats,
+    onAddCat: onAddCat,
+    onChange: v => onUpdate({
+      category: v
+    })
+  })), /*#__PURE__*/React.createElement(Field, {
     label: "Data"
   }, /*#__PURE__*/React.createElement("input", {
     type: "date",
@@ -1112,6 +1180,8 @@ function ExpenseRow({
 function ExpenseForm({
   A,
   B,
+  cats,
+  onAddCat,
   onSave,
   onCancel
 }) {
@@ -1142,13 +1212,12 @@ function ExpenseForm({
     className: inp
   }))), /*#__PURE__*/React.createElement(Field, {
     label: "Categoria"
-  }, /*#__PURE__*/React.createElement("select", {
+  }, /*#__PURE__*/React.createElement(CatSelect, {
     value: f.category,
-    onChange: e => set("category", e.target.value),
-    className: inp
-  }, CATS.map(c => /*#__PURE__*/React.createElement("option", {
-    key: c
-  }, c)))), /*#__PURE__*/React.createElement(Field, {
+    cats: cats,
+    onAddCat: onAddCat,
+    onChange: v => set("category", v)
+  })), /*#__PURE__*/React.createElement(Field, {
     label: "Data"
   }, /*#__PURE__*/React.createElement("input", {
     type: "date",
@@ -1195,9 +1264,12 @@ function Riepilogo({
   A,
   B
 }) {
-  const items = [...toArr(data.expenses), ...toArr(data.stays).filter(s => Number(s.cost) > 0).map(s => ({
+  const items = [...toArr(data.expenses).map(e => ({
+    ...e,
+    amount: Number(e.amount) || 0
+  })), ...toArr(data.stays).filter(s => Number(s.cost) > 0 && (s.paidBy === "A" || s.paidBy === "B")).map(s => ({
     ...s,
-    amount: s.cost,
+    amount: toBase(s.cost, s.curr),
     description: s.name,
     category: "Alloggio"
   }))];
@@ -1409,7 +1481,19 @@ function Settings({
     onChange: e => set("nameB", e.target.value),
     placeholder: "partner",
     className: inp
-  })))), /*#__PURE__*/React.createElement("button", {
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2"
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Cambio: quante corone (kr) per 1 €"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "0.1",
+    value: f.eurIsk ?? 150,
+    onChange: e => set("eurIsk", e.target.value === "" ? "" : +e.target.value),
+    className: inp
+  })), /*#__PURE__*/React.createElement("p", {
+    className: "text-[11px] text-mute mt-1 leading-snug"
+  }, "Serve solo per convertire nel saldo gli importi inseriti in euro. Valore indicativo, aggiornalo quando vuoi.")), /*#__PURE__*/React.createElement("button", {
     onClick: () => onSave(f),
     className: "w-full mt-4 rounded-xl bg-moss text-card py-2.5 text-[13px] font-medium"
   }, "Salva"), /*#__PURE__*/React.createElement("div", {
@@ -1447,15 +1531,157 @@ function PaidBy({
   value,
   A,
   B,
-  onChange
+  onChange,
+  allowNone
 }) {
+  const opts = allowNone ? [["A", A], ["B", B], ["none", "Da pagare"]] : [["A", A], ["B", B]];
   return /*#__PURE__*/React.createElement("div", {
     className: "flex rounded-lg border border-hair overflow-hidden"
-  }, [["A", A], ["B", B]].map(([k, name]) => /*#__PURE__*/React.createElement("button", {
+  }, opts.map(([k, name]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => onChange(k),
-    className: "flex-1 py-2 text-[13px] truncate px-1 " + (value === k ? "bg-moss text-card" : "bg-page text-ink")
+    className: "flex-1 py-2 text-[12px] truncate px-1 " + (value === k ? k === "none" ? "bg-copper text-card" : "bg-moss text-card" : "bg-page text-ink")
   }, name)));
+}
+function CurrSelect({
+  value,
+  onChange
+}) {
+  return /*#__PURE__*/React.createElement("select", {
+    value: value,
+    onChange: e => onChange(e.target.value),
+    className: "bg-page border border-hair rounded-lg px-2 text-[13px] text-ink focus:outline-none focus:border-slate"
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "ISK"
+  }, "kr"), /*#__PURE__*/React.createElement("option", {
+    value: "EUR"
+  }, "€"));
+}
+function CatSelect({
+  value,
+  cats,
+  onChange,
+  onAddCat
+}) {
+  return /*#__PURE__*/React.createElement("select", {
+    value: value,
+    className: inp,
+    onChange: e => {
+      if (e.target.value === "__new") {
+        const name = window.prompt("Nuova categoria:");
+        if (name && name.trim()) {
+          onAddCat(name.trim());
+          onChange(name.trim());
+        }
+      } else {
+        onChange(e.target.value);
+      }
+    }
+  }, cats.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c,
+    value: c
+  }, c)), value && !cats.includes(value) && /*#__PURE__*/React.createElement("option", {
+    value: value
+  }, value), /*#__PURE__*/React.createElement("option", {
+    value: "__new"
+  }, "+ Nuova categoria…"));
+}
+function CategoryManager({
+  data,
+  cats,
+  commit,
+  onClose
+}) {
+  const [rows, setRows] = useState(cats.map(c => ({
+    orig: c,
+    name: c
+  })));
+  const [nw, setNw] = useState("");
+  const upd = (i, v) => setRows(r => r.map((x, j) => j === i ? {
+    ...x,
+    name: v
+  } : x));
+  const del = i => setRows(r => r.filter((_, j) => j !== i));
+  const add = () => {
+    const v = nw.trim();
+    if (v) {
+      setRows(r => [...r, {
+        orig: null,
+        name: v
+      }]);
+      setNw("");
+    }
+  };
+  function save() {
+    const finalCats = [];
+    const mapping = {};
+    rows.forEach(r => {
+      const nm = r.name.trim();
+      if (!nm) return;
+      if (!finalCats.includes(nm)) finalCats.push(nm);
+      if (r.orig && nm !== r.orig) mapping[r.orig] = nm;
+    });
+    const exp = {
+      ...data.expenses
+    };
+    Object.keys(exp).forEach(id => {
+      const c = exp[id].category;
+      if (mapping[c]) exp[id] = {
+        ...exp[id],
+        category: mapping[c]
+      };
+    });
+    commit({
+      ...data,
+      categories: finalCats.length ? finalCats : DEFAULT_CATS,
+      expenses: exp
+    });
+    onClose();
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 z-30 bg-ink/40 flex items-end sm:items-center justify-center p-0 sm:p-4",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-page w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 fade",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center mb-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-display text-[18px] text-moss"
+  }, "Categorie"), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "text-mute text-[22px] leading-none"
+  }, "×")), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-2 max-h-[50vh] overflow-y-auto"
+  }, rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex gap-2 items-center"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: r.name,
+    onChange: e => upd(i, e.target.value),
+    className: inp
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => del(i),
+    className: "text-copper text-[12px] px-2 shrink-0"
+  }, "Elimina")))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mt-3"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: nw,
+    onChange: e => setNw(e.target.value),
+    placeholder: "Nuova categoria",
+    className: inp,
+    onKeyDown: e => {
+      if (e.key === "Enter") add();
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: add,
+    className: "px-4 rounded-lg border border-hair bg-card text-moss text-[13px] shrink-0"
+  }, "Aggiungi")), /*#__PURE__*/React.createElement("p", {
+    className: "text-[11px] text-mute mt-3 leading-snug"
+  }, "Se rinomini una categoria, le spese che la usano si aggiornano. Eliminarla non cancella le spese."), /*#__PURE__*/React.createElement("button", {
+    onClick: save,
+    className: "w-full mt-3 rounded-xl bg-moss text-card py-2.5 text-[13px] font-medium"
+  }, "Salva")));
 }
 function Split({
   value,
