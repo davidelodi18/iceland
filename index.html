@@ -777,10 +777,12 @@ function Alloggi({
     className: "mt-2 grid gap-3 " + (totDaPagare > 0 ? "grid-cols-3" : "grid-cols-2")
   }, /*#__PURE__*/React.createElement(Stat, {
     label: "Costo alloggi",
-    value: money(totCost)
+    value: money(totCost),
+    sub: curCode === "ISK" ? "≈ " + moneyIn(totCost / curRate, "EUR") : undefined
   }), totDaPagare > 0 && /*#__PURE__*/React.createElement(Stat, {
     label: "Da pagare",
-    value: money(totDaPagare)
+    value: money(totDaPagare),
+    sub: curCode === "ISK" ? "≈ " + moneyIn(totDaPagare / curRate, "EUR") : undefined
   }), /*#__PURE__*/React.createElement(Stat, {
     label: "Notti",
     value: `${totNights}`
@@ -1004,7 +1006,6 @@ function Spese({
   A,
   B
 }) {
-  const exp = toArr(data.expenses).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const cats = data.categories && data.categories.length ? data.categories : DEFAULT_CATS;
   const [adding, setAdding] = useState(false);
   const [manage, setManage] = useState(false);
@@ -1045,7 +1046,23 @@ function Spese({
       categories: [...cats, c]
     });
   };
-  const tot = exp.reduce((t, e) => t + (Number(e.amount) || 0), 0);
+  const expItems = toArr(data.expenses).map(e => ({
+    _type: "exp",
+    ...e
+  }));
+  const stayItems = toArr(data.stays).filter(s => Number(s.cost) > 0 && (s.paidBy === "A" || s.paidBy === "B")).map(s => ({
+    _type: "stay",
+    id: s.id,
+    date: s.checkIn,
+    description: s.name || "Alloggio",
+    category: "Alloggio",
+    paidBy: s.paidBy,
+    cost: s.cost,
+    curr: s.curr,
+    amount: toBase(s.cost, s.curr)
+  }));
+  const list = [...expItems, ...stayItems].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const tot = list.reduce((t, i) => t + (Number(i.amount) || 0), 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
@@ -1066,17 +1083,22 @@ function Spese({
     onAddCat: addCat,
     onSave: add,
     onCancel: () => setAdding(false)
-  }), exp.length === 0 && !adding && /*#__PURE__*/React.createElement(Empty, {
+  }), list.length === 0 && !adding && /*#__PURE__*/React.createElement(Empty, {
     text: "Ancora nessuna spesa registrata."
-  }), exp.map(e => /*#__PURE__*/React.createElement(ExpenseRow, {
-    key: e.id,
-    e: e,
+  }), list.map(i => i._type === "stay" ? /*#__PURE__*/React.createElement(StayExpenseRow, {
+    key: "s" + i.id,
+    it: i,
+    A: A,
+    B: B
+  }) : /*#__PURE__*/React.createElement(ExpenseRow, {
+    key: i.id,
+    e: i,
     A: A,
     B: B,
     cats: cats,
     onAddCat: addCat,
-    onUpdate: p => upd(e.id, p),
-    onRemove: () => del(e.id)
+    onUpdate: p => upd(i.id, p),
+    onRemove: () => del(i.id)
   })), manage && /*#__PURE__*/React.createElement(CategoryManager, {
     data: data,
     cats: cats,
@@ -1176,6 +1198,38 @@ function ExpenseRow({
     onClick: onRemove,
     className: "col-span-2 text-left text-[12px] text-copper active:opacity-70"
   }, "Elimina spesa")));
+}
+function StayExpenseRow({
+  it,
+  A,
+  B
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "bg-card border border-hair rounded-2xl px-4 py-3 mb-2.5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-full flex items-center justify-between gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[15px] text-ink truncate"
+  }, it.description), /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-mute mt-0.5 flex gap-2 items-center flex-wrap"
+  }, it.date && /*#__PURE__*/React.createElement("span", null, new Date(it.date).toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "short"
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "text-slate"
+  }, "Alloggio"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] text-mute border border-hair rounded px-1"
+  }, "da Alloggi"))), /*#__PURE__*/React.createElement("div", {
+    className: "text-right shrink-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-[15px] text-ink"
+  }, money(it.amount)), it.curr && it.curr !== curCode && /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-[10px] text-mute"
+  }, moneyIn(it.cost, it.curr)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-slate"
+  }, "paga ", it.paidBy === "A" ? A : B))));
 }
 function ExpenseForm({
   A,
@@ -1716,7 +1770,8 @@ function SectionTitle({
 }
 function Stat({
   label,
-  value
+  value,
+  sub
 }) {
   return /*#__PURE__*/React.createElement("div", {
     className: "bg-card border border-hair rounded-2xl px-4 py-3"
@@ -1724,7 +1779,9 @@ function Stat({
     className: "text-[11px] text-mute uppercase tracking-wide"
   }, label), /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[18px] text-moss mt-0.5"
-  }, value));
+  }, value), sub && /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-[11px] text-mute mt-0.5"
+  }, sub));
 }
 function Empty({
   text
