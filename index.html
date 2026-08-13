@@ -149,6 +149,23 @@ const money = n => fmtCur.format(Number(n) || 0);
 const moneyIn = (n, code) => fmtOf(code || curCode).format(Number(n) || 0);
 const sym = () => CURRENCIES[curCode] || "kr";
 const symOf = code => CURRENCIES[code] || "kr";
+// equivalente in euro, mostrato quando la valuta base non è l'euro
+const eurApprox = base => curCode === "ISK" ? "≈ " + fmtOf("EUR").format((Number(base) || 0) / curRate) : null;
+const withEur = base => {
+  const e = eurApprox(base);
+  return money(base) + (e ? " · " + e : "");
+};
+function AmtCell({
+  base,
+  cls
+}) {
+  const e = eurApprox(base);
+  return /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-right leading-tight " + (cls || "")
+  }, money(base), e && /*#__PURE__*/React.createElement("span", {
+    className: "block text-[10px] text-mute"
+  }, e));
+}
 // converte un importo dalla sua valuta a quella base (per saldo e totali)
 function toBase(amount, cur) {
   amount = Number(amount) || 0;
@@ -861,7 +878,9 @@ function StayCard({
     className: "text-right"
   }, /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[14px] text-ink"
-  }, s.cost ? moneyIn(s.cost, s.curr) : "—"), s.paidBy === "none" ? /*#__PURE__*/React.createElement("div", {
+  }, s.cost ? moneyIn(s.cost, s.curr) : "—"), s.cost && s.curr !== "EUR" && eurApprox(toBase(s.cost, s.curr)) && /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-[10px] text-mute"
+  }, eurApprox(toBase(s.cost, s.curr))), s.paidBy === "none" ? /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-copper"
   }, "Da pagare") : s.paidBy && /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-slate"
@@ -1119,7 +1138,7 @@ function Spese({
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     title: "Spese",
-    note: money(tot)
+    note: withEur(tot)
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 mb-4"
   }, /*#__PURE__*/React.createElement("button", {
@@ -1155,10 +1174,12 @@ function Spese({
     className: "mt-2 grid grid-cols-2 gap-3"
   }, /*#__PURE__*/React.createElement(Stat, {
     label: "Già pagate",
-    value: money(tot)
+    value: money(tot),
+    sub: eurApprox(tot)
   }), /*#__PURE__*/React.createElement(Stat, {
     label: "Da pagare",
-    value: money(totDaPagare)
+    value: money(totDaPagare),
+    sub: eurApprox(totDaPagare)
   })), manage && /*#__PURE__*/React.createElement(CategoryManager, {
     data: data,
     cats: cats,
@@ -1197,9 +1218,9 @@ function ExpenseRow({
     className: "text-right shrink-0"
   }, /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[15px] text-ink"
-  }, money(base)), e.curr && e.curr !== curCode && /*#__PURE__*/React.createElement("div", {
+  }, money(base)), (e.curr && e.curr !== curCode ? moneyIn(e.amount, e.curr) : eurApprox(base)) && /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[10px] text-mute"
-  }, moneyIn(e.amount, e.curr)), e.paidBy === "none" ? /*#__PURE__*/React.createElement("div", {
+  }, e.curr && e.curr !== curCode ? moneyIn(e.amount, e.curr) : eurApprox(base)), e.paidBy === "none" ? /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-copper"
   }, "Da pagare") : /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-slate"
@@ -1298,9 +1319,9 @@ function StayExpenseRow({
     className: "text-right shrink-0"
   }, /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[15px] text-ink"
-  }, money(it.amount)), it.curr && it.curr !== curCode && /*#__PURE__*/React.createElement("div", {
+  }, money(it.amount)), (it.curr && it.curr !== curCode ? moneyIn(it.cost, it.curr) : eurApprox(it.amount)) && /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[10px] text-mute"
-  }, moneyIn(it.cost, it.curr)), /*#__PURE__*/React.createElement("div", {
+  }, it.curr && it.curr !== curCode ? moneyIn(it.cost, it.curr) : eurApprox(it.amount)), /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-slate"
   }, "paga ", it.paidBy === "A" ? A : B))));
 }
@@ -1431,7 +1452,7 @@ function Riepilogo({
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     title: "Saldo",
-    note: money(total) + " totali"
+    note: withEur(total) + " totali"
   }), /*#__PURE__*/React.createElement("div", {
     className: "rounded-2xl border border-moss/20 bg-moss text-card px-5 py-5 mb-4"
   }, total === 0 ? /*#__PURE__*/React.createElement("div", {
@@ -1450,7 +1471,9 @@ function Riepilogo({
     className: "font-display text-[22px] leading-snug mt-1"
   }, netA < 0 ? A : B, " deve a ", netA < 0 ? B : A), /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[30px] mt-1"
-  }, money(owe)))), /*#__PURE__*/React.createElement("div", {
+  }, money(owe)), eurApprox(owe) && /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-[13px] text-card/70"
+  }, eurApprox(owe)))), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-3 mb-4"
   }, /*#__PURE__*/React.createElement(PersonCard, {
     name: A,
@@ -1466,21 +1489,24 @@ function Riepilogo({
     className: "flex justify-between items-baseline"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[12px] text-mute uppercase tracking-wide"
-  }, "Ancora da pagare"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono text-[17px] text-copper"
-  }, money(daPagare))), /*#__PURE__*/React.createElement("div", {
+  }, "Ancora da pagare"), /*#__PURE__*/React.createElement(AmtCell, {
+    base: daPagare,
+    cls: "text-[17px] text-copper"
+  })), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between items-baseline mt-1.5 pt-1.5 border-t border-hair"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[12px] text-mute"
-  }, "Quota a testa"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono text-[13px] text-ink"
-  }, money(daPagare / 2))), /*#__PURE__*/React.createElement("div", {
+  }, "Quota a testa"), /*#__PURE__*/React.createElement(AmtCell, {
+    base: daPagare / 2,
+    cls: "text-[13px] text-ink"
+  })), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between items-baseline mt-1.5"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[12px] text-mute"
-  }, "Costo totale viaggio"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono text-[13px] text-ink"
-  }, money(total + daPagare)))), total > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "Costo totale viaggio"), /*#__PURE__*/React.createElement(AmtCell, {
+    base: total + daPagare,
+    cls: "text-[13px] text-ink"
+  }))), total > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bg-card border border-hair rounded-2xl p-4 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-[12px] text-mute uppercase tracking-wide mb-2"
@@ -1493,7 +1519,7 @@ function Riepilogo({
     className: "text-ink"
   }, c), /*#__PURE__*/React.createElement("span", {
     className: "font-mono text-ink/80"
-  }, money(v))), /*#__PURE__*/React.createElement("div", {
+  }, withEur(v))), /*#__PURE__*/React.createElement("div", {
     className: "h-1.5 bg-cardsoft rounded-full mt-1 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "h-full bg-slate/70 rounded-full",
@@ -1527,19 +1553,19 @@ function PersonCard({
     className: "mt-2 text-[12px] flex justify-between"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-mute"
-  }, "Anticipato"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono"
-  }, money(paid))), /*#__PURE__*/React.createElement("div", {
+  }, "Anticipato"), /*#__PURE__*/React.createElement(AmtCell, {
+    base: paid
+  })), /*#__PURE__*/React.createElement("div", {
     className: "text-[12px] flex justify-between"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-mute"
-  }, "Quota dovuta"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono"
-  }, money(share))), /*#__PURE__*/React.createElement("div", {
+  }, "Quota dovuta"), /*#__PURE__*/React.createElement(AmtCell, {
+    base: share
+  })), /*#__PURE__*/React.createElement("div", {
     className: "text-[12px] flex justify-between mt-1 pt-1 border-t border-hair " + (net >= 0 ? "text-moss2" : "text-copper")
-  }, /*#__PURE__*/React.createElement("span", null, net >= 0 ? "a credito" : "a debito"), /*#__PURE__*/React.createElement("span", {
-    className: "font-mono"
-  }, money(Math.abs(net)))));
+  }, /*#__PURE__*/React.createElement("span", null, net >= 0 ? "a credito" : "a debito"), /*#__PURE__*/React.createElement(AmtCell, {
+    base: Math.abs(net)
+  })));
 }
 
 /* ---------------- Impostazioni ---------------- */
