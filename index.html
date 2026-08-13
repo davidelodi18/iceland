@@ -175,6 +175,49 @@ function nightsBetween(a, b) {
 }
 const DEFAULT_CATS = ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Altro"];
 
+/* ============================================================
+   DATI DA EXCEL (ICELAND_RT.xlsx) — importati una sola volta.
+   Le chiavi sono fisse: reimportare non crea duplicati.
+   Importi in EUR, indipendenti dalla valuta base impostata.
+   ============================================================ */
+const SEED_ID = "xls-2026-08-v1";
+const SEED = {
+  stays: {
+    xls_st_1: { name: "CityHub Reykjavík", place: "Reykjavík", checkIn: "2026-08-19", checkOut: "2026-08-20", cost: 165.25, curr: "EUR", paidBy: "none", splitA: 50, url: "" },
+    xls_st_2: { name: "Country cottage with great view to the glacier", place: "Hvolsvöllur", checkIn: "2026-08-20", checkOut: "2026-08-22", cost: 440, curr: "EUR", paidBy: "B", splitA: 50, url: "" },
+    xls_st_3: { name: "Farmhouse Lodge", place: "Vík", checkIn: "2026-08-22", checkOut: "2026-08-24", cost: 750, curr: "EUR", paidBy: "B", splitA: 50, url: "" },
+    xls_st_4: { name: "Fosshotel Vatnajökull", place: "Höfn", checkIn: "2026-08-24", checkOut: "2026-08-26", cost: 723, curr: "EUR", paidBy: "none", splitA: 50, url: "" },
+    xls_st_5: { name: "CityHub Reykjavík", place: "Reykjavík", checkIn: "2026-08-26", checkOut: "2026-08-27", cost: 155.97, curr: "EUR", paidBy: "none", splitA: 50, url: "" }
+  },
+  expenses: {
+    xls_ex_car: { description: "Noleggio auto · Dacia Duster (Blue Car Rental, rimborsabile)", category: "Trasporti", date: "2026-08-19", amount: 1320.71, curr: "EUR", paidBy: "A", splitA: 50 },
+    xls_ex_ins: { description: "Assicurazione viaggio · Hey Mondo", category: "Assicurazione", date: "2026-08-19", amount: 75.95, curr: "EUR", paidBy: "A", splitA: 50 },
+    xls_ex_fly_a: { description: "Volo A/R EasyJet · quota Davide", category: "Volo", date: "2026-08-19", amount: 546.5, curr: "EUR", paidBy: "A", splitA: 100 },
+    xls_ex_fly_b: { description: "Volo A/R EasyJet · quota Cami", category: "Volo", date: "2026-08-19", amount: 546.5, curr: "EUR", paidBy: "B", splitA: 0 }
+  },
+  categories: ["Alloggio", "Volo", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Assicurazione", "Altro"]
+};
+function applySeed(d) {
+  const cats = Array.isArray(d.categories) && d.categories.length ? d.categories.slice() : DEFAULT_CATS.slice();
+  SEED.categories.forEach(c => {
+    if (!cats.includes(c)) cats.push(c);
+  });
+  const st = { ...(d.settings || EMPTY.settings) };
+  if (!st.nameA || !st.nameA.trim()) st.nameA = "Davide";
+  if (!st.nameB || !st.nameB.trim()) {
+    st.nameB = "Cami";
+    st.currency = "EUR"; // impostazioni mai toccate: i dati dell'Excel sono in euro
+  }
+  return {
+    ...d,
+    settings: st,
+    stays: { ...(d.stays || {}), ...SEED.stays },
+    expenses: { ...(d.expenses || {}), ...SEED.expenses },
+    categories: cats,
+    seeded: SEED_ID
+  };
+}
+
 /* ---------- geocoding + routing gratuiti (OpenStreetMap / OSRM) ---------- */
 async function geocode(q) {
   const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=is&q=" + encodeURIComponent(q);
@@ -230,6 +273,12 @@ function App() {
       localStorage.setItem(LS_KEY, JSON.stringify(next));
     }
   }
+  const seedRef = useRef(false);
+  useEffect(() => {
+    if (data === null || seedRef.current) return;
+    seedRef.current = true;
+    if (data.seeded !== SEED_ID) commit(applySeed(data));
+  }, [data]);
   const patch = part => commit({
     ...data,
     ...part
@@ -1048,7 +1097,8 @@ function Spese({
   };
   const expItems = toArr(data.expenses).map(e => ({
     _type: "exp",
-    ...e
+    ...e,
+    _base: toBase(e.amount, e.curr)
   }));
   const stayItems = toArr(data.stays).filter(s => Number(s.cost) > 0 && (s.paidBy === "A" || s.paidBy === "B")).map(s => ({
     _type: "stay",
@@ -1059,10 +1109,12 @@ function Spese({
     paidBy: s.paidBy,
     cost: s.cost,
     curr: s.curr,
-    amount: toBase(s.cost, s.curr)
+    amount: toBase(s.cost, s.curr),
+    _base: toBase(s.cost, s.curr)
   }));
   const list = [...expItems, ...stayItems].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  const tot = list.reduce((t, i) => t + (Number(i.amount) || 0), 0);
+  const tot = list.reduce((t, i) => t + (i.paidBy === "none" ? 0 : Number(i._base) || 0), 0);
+  const totDaPagare = list.reduce((t, i) => t + (i.paidBy === "none" ? Number(i._base) || 0 : 0), 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
@@ -1099,6 +1151,14 @@ function Spese({
     onAddCat: addCat,
     onUpdate: p => upd(i.id, p),
     onRemove: () => del(i.id)
+  })), totDaPagare > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 grid grid-cols-2 gap-3"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Già pagate",
+    value: money(tot)
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Da pagare",
+    value: money(totDaPagare)
   })), manage && /*#__PURE__*/React.createElement(CategoryManager, {
     data: data,
     cats: cats,
@@ -1116,6 +1176,7 @@ function ExpenseRow({
   onRemove
 }) {
   const [open, setOpen] = useState(false);
+  const base = toBase(e.amount, e.curr);
   return /*#__PURE__*/React.createElement("div", {
     className: "bg-card border border-hair rounded-2xl px-4 py-3 mb-2.5"
   }, /*#__PURE__*/React.createElement("button", {
@@ -1136,7 +1197,11 @@ function ExpenseRow({
     className: "text-right shrink-0"
   }, /*#__PURE__*/React.createElement("div", {
     className: "font-mono text-[15px] text-ink"
-  }, money(e.amount || 0)), /*#__PURE__*/React.createElement("div", {
+  }, money(base)), e.curr && e.curr !== curCode && /*#__PURE__*/React.createElement("div", {
+    className: "font-mono text-[10px] text-mute"
+  }, moneyIn(e.amount, e.curr)), e.paidBy === "none" ? /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-copper"
+  }, "Da pagare") : /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-slate"
   }, "paga ", e.paidBy === "A" ? A : B))), open && /*#__PURE__*/React.createElement("div", {
     className: "mt-3 pt-3 border-t border-hair fade grid grid-cols-2 gap-3"
@@ -1167,7 +1232,9 @@ function ExpenseRow({
     }),
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Importo " + sym()
+    label: "Importo"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1"
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     step: "0.01",
@@ -1176,12 +1243,18 @@ function ExpenseRow({
       amount: ev.target.value === "" ? "" : +ev.target.value
     }),
     className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
+  }), /*#__PURE__*/React.createElement(CurrSelect, {
+    value: e.curr || curCode,
+    onChange: v => onUpdate({
+      curr: v
+    })
+  }))), /*#__PURE__*/React.createElement(Field, {
     label: "Pagato da"
   }, /*#__PURE__*/React.createElement(PaidBy, {
-    value: e.paidBy,
+    value: e.paidBy || "A",
     A: A,
     B: B,
+    allowNone: true,
     onChange: v => onUpdate({
       paidBy: v
     })
@@ -1245,6 +1318,7 @@ function ExpenseForm({
     category: "Cibo",
     date: today,
     amount: "",
+    curr: curCode,
     paidBy: "A",
     splitA: 50
   });
@@ -1279,19 +1353,25 @@ function ExpenseForm({
     onChange: e => set("date", e.target.value),
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Importo " + sym() + " *"
+    label: "Importo *"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1"
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     step: "0.01",
     value: f.amount,
     onChange: e => set("amount", e.target.value === "" ? "" : +e.target.value),
     className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
+  }), /*#__PURE__*/React.createElement(CurrSelect, {
+    value: f.curr,
+    onChange: v => set("curr", v)
+  }))), /*#__PURE__*/React.createElement(Field, {
     label: "Pagato da"
   }, /*#__PURE__*/React.createElement(PaidBy, {
     value: f.paidBy,
     A: A,
     B: B,
+    allowNone: true,
     onChange: v => set("paidBy", v)
   })), /*#__PURE__*/React.createElement("div", {
     className: "col-span-2"
@@ -1318,9 +1398,9 @@ function Riepilogo({
   A,
   B
 }) {
-  const items = [...toArr(data.expenses).map(e => ({
+  const items = [...toArr(data.expenses).filter(e => e.paidBy !== "none").map(e => ({
     ...e,
-    amount: Number(e.amount) || 0
+    amount: toBase(e.amount, e.curr)
   })), ...toArr(data.stays).filter(s => Number(s.cost) > 0 && (s.paidBy === "A" || s.paidBy === "B")).map(s => ({
     ...s,
     amount: toBase(s.cost, s.curr),
@@ -1341,6 +1421,7 @@ function Riepilogo({
     byCat[it.category || "Altro"] = (byCat[it.category || "Altro"] || 0) + amt;
   }
   const total = paidA + paidB;
+  const daPagare = [...toArr(data.stays).filter(s => s.paidBy === "none").map(s => toBase(s.cost, s.curr)), ...toArr(data.expenses).filter(e => e.paidBy === "none").map(e => toBase(e.amount, e.curr))].reduce((t, v) => t + (Number(v) || 0), 0);
   const netA = paidA - shareA;
   const owe = Math.abs(Math.round(netA * 100) / 100);
   const stops = toArr(data.stops);
@@ -1379,7 +1460,27 @@ function Riepilogo({
     name: B,
     paid: paidB,
     share: shareB
-  })), total > 0 && /*#__PURE__*/React.createElement("div", {
+  })), daPagare > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "bg-card border border-copper/30 rounded-2xl p-4 mb-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-baseline"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-[12px] text-mute uppercase tracking-wide"
+  }, "Ancora da pagare"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[17px] text-copper"
+  }, money(daPagare))), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-baseline mt-1.5 pt-1.5 border-t border-hair"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-[12px] text-mute"
+  }, "Quota a testa"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[13px] text-ink"
+  }, money(daPagare / 2))), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-baseline mt-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-[12px] text-mute"
+  }, "Costo totale viaggio"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[13px] text-ink"
+  }, money(total + daPagare)))), total > 0 && /*#__PURE__*/React.createElement("div", {
     className: "bg-card border border-hair rounded-2xl p-4 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-[12px] text-mute uppercase tracking-wide mb-2"
@@ -1564,7 +1665,15 @@ function Settings({
     accept: "application/json",
     onChange: importJSON,
     className: "hidden"
-  })), !firebaseEnabled && /*#__PURE__*/React.createElement("p", {
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm("Reimportare i dati dell'Excel (alloggi, auto, volo, assicurazione)? Le voci importate tornano ai valori originali, le altre restano come sono.")) {
+        commit(applySeed(data));
+        onClose();
+      }
+    },
+    className: "w-full mt-2 rounded-xl border border-hair bg-card py-2.5 text-[12px] text-slate"
+  }, "Reimporta dati Excel"), !firebaseEnabled && /*#__PURE__*/React.createElement("p", {
     className: "text-[11px] text-copper mt-3 leading-snug"
   }, "Modalità locale attiva. Per sincronizzare tra due telefoni, incolla la config Firebase in alto nel file.")));
 }
