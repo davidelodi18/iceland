@@ -133,6 +133,7 @@ const EMPTY = {
   stops: {},
   stays: {},
   expenses: {},
+  gear: {},
   categories: ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Altro"]
 };
 function loadLocal() {
@@ -365,6 +366,9 @@ function App() {
     commit: commit,
     A: A,
     B: B
+  }), tab === "materiale" && /*#__PURE__*/React.createElement(Materiale, {
+    data: data,
+    commit: commit
   }), tab === "riepilogo" && /*#__PURE__*/React.createElement(Riepilogo, {
     data: data,
     A: A,
@@ -450,18 +454,18 @@ function TabBar({
   tab,
   setTab
 }) {
-  const tabs = [["itinerario", "Itinerario", "M9 20l-5.4 2.6L4 4l5-2 6 2 5-2-.4 12.6L15 18"], ["mappa", "Mappa", "M12 21s7-6.4 7-11a7 7 0 10-14 0c0 4.6 7 11 7 11z M12 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"], ["alloggi", "Alloggi", "M3 21V10l9-6 9 6v11h-6v-7h-6v7z"], ["spese", "Spese", "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"], ["riepilogo", "Saldo", "M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"]];
+  const tabs = [["itinerario", "Itinerario", "M9 20l-5.4 2.6L4 4l5-2 6 2 5-2-.4 12.6L15 18"], ["mappa", "Mappa", "M12 21s7-6.4 7-11a7 7 0 10-14 0c0 4.6 7 11 7 11z M12 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"], ["alloggi", "Alloggi", "M3 21V10l9-6 9 6v11h-6v-7h-6v7z"], ["spese", "Spese", "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"], ["materiale", "Valigia", "M6 8V6a2 2 0 012-2h8a2 2 0 012 2v2M4 8h16v11a2 2 0 01-2 2H6a2 2 0 01-2-2z M9 12v5M15 12v5"], ["riepilogo", "Saldo", "M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"]];
   return /*#__PURE__*/React.createElement("nav", {
     className: "fixed bottom-0 left-0 right-0 bg-card border-t border-hair z-20"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-2xl mx-auto grid grid-cols-5"
+    className: "max-w-2xl mx-auto grid grid-cols-6"
   }, tabs.map(([id, label, d]) => /*#__PURE__*/React.createElement("button", {
     key: id,
     onClick: () => setTab(id),
     className: "flex flex-col items-center gap-1 py-2.5 transition " + (tab === id ? "text-moss" : "text-mute")
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "22",
-    height: "22",
+    width: "20",
+    height: "20",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -471,7 +475,7 @@ function TabBar({
   }, /*#__PURE__*/React.createElement("path", {
     d: d
   })), /*#__PURE__*/React.createElement("span", {
-    className: "text-[11px] " + (tab === id ? "font-semibold" : "")
+    className: "text-[10px] leading-none " + (tab === id ? "font-semibold" : "")
   }, label)))));
 }
 
@@ -1604,6 +1608,205 @@ function PersonCard({
   }, /*#__PURE__*/React.createElement("span", null, net >= 0 ? "a credito" : "a debito"), /*#__PURE__*/React.createElement(AmtCell, {
     base: Math.abs(net)
   })));
+}
+
+/* ---------------- MATERIALE / VALIGIA ---------------- */
+const GEAR_CATS = ["Documenti", "Abbigliamento", "Scarpe", "Attrezzatura", "Elettronica", "Igiene", "Auto", "Altro"];
+const GEAR_SUGGESTED = [["Passaporto / carta d'identità", "Documenti"], ["Patente", "Documenti"], ["Tessera sanitaria / TEAM", "Documenti"], ["Polizza viaggio (copia)", "Documenti"], ["Prenotazioni stampate", "Documenti"], ["Giacca antipioggia e antivento", "Abbigliamento"], ["Pile o micropile", "Abbigliamento"], ["Strato termico (maglia e calzamaglia)", "Abbigliamento"], ["Pantaloni impermeabili", "Abbigliamento"], ["Cappello e guanti", "Abbigliamento"], ["Buff / scaldacollo", "Abbigliamento"], ["Calze da trekking", "Abbigliamento"], ["Costume da bagno", "Abbigliamento"], ["Scarponcini impermeabili", "Scarpe"], ["Ciabatte per le piscine", "Scarpe"], ["Zaino da giornata", "Attrezzatura"], ["Borraccia", "Attrezzatura"], ["Occhiali da sole", "Attrezzatura"], ["Mascherina per dormire", "Attrezzatura"], ["Asciugamano microfibra", "Attrezzatura"], ["Adattatore presa (tipo F)", "Elettronica"], ["Powerbank", "Elettronica"], ["Caricabatterie e cavi", "Elettronica"], ["Supporto telefono per auto", "Elettronica"], ["Crema solare", "Igiene"], ["Burrocacao", "Igiene"], ["Farmaci e cerotti", "Igiene"], ["Salviette umidificate", "Auto"], ["Sacchetti per rifiuti", "Auto"], ["Snack per i trasferimenti", "Auto"]];
+function Materiale({
+  data,
+  commit
+}) {
+  const items = toArr(data.gear).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const [name, setName] = useState("");
+  const [cat, setCat] = useState("Abbigliamento");
+  const [status, setStatus] = useState("have");
+  const [filter, setFilter] = useState("all");
+  function add() {
+    const n = name.trim();
+    if (!n) return;
+    const order = items.length ? Math.max(...items.map(i => i.order || 0)) + 1 : 0;
+    commit({
+      ...data,
+      gear: {
+        ...data.gear,
+        [uid()]: {
+          name: n,
+          cat,
+          status,
+          packed: false,
+          order
+        }
+      }
+    });
+    setName("");
+  }
+  function update(id, part) {
+    commit({
+      ...data,
+      gear: {
+        ...data.gear,
+        [id]: {
+          ...data.gear[id],
+          ...part
+        }
+      }
+    });
+  }
+  function remove(id) {
+    const ns = {
+      ...data.gear
+    };
+    delete ns[id];
+    commit({
+      ...data,
+      gear: ns
+    });
+  }
+  function addSuggested() {
+    const have = new Set(items.map(i => (i.name || "").toLowerCase().trim()));
+    let order = items.length ? Math.max(...items.map(i => i.order || 0)) + 1 : 0;
+    const ns = {
+      ...data.gear
+    };
+    let n = 0;
+    GEAR_SUGGESTED.forEach(([nm, c]) => {
+      if (have.has(nm.toLowerCase())) return;
+      ns[uid() + n] = {
+        name: nm,
+        cat: c,
+        status: "have",
+        packed: false,
+        order: order++
+      };
+      n++;
+    });
+    if (n) commit({
+      ...data,
+      gear: ns
+    });
+  }
+  const tot = items.length;
+  const toBuy = items.filter(i => i.status === "buy").length;
+  const packed = items.filter(i => i.packed).length;
+  const pct = tot ? Math.round(packed / tot * 100) : 0;
+  const shown = items.filter(i => filter === "buy" ? i.status === "buy" : filter === "todo" ? !i.packed : true);
+  const groups = GEAR_CATS.map(c => [c, shown.filter(i => (i.cat || "Altro") === c)]).filter(([, arr]) => arr.length);
+  const chip = (id, label) => /*#__PURE__*/React.createElement("button", {
+    key: id,
+    onClick: () => setFilter(id),
+    className: "px-3 py-1.5 rounded-full text-[12px] border transition " + (filter === id ? "bg-moss text-card border-moss" : "bg-card text-slate border-hair")
+  }, label);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "py-5 fade"
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    title: "Materiale",
+    note: tot ? packed + "/" + tot + " in valigia" : ""
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "bg-card border border-hair rounded-2xl p-3 mb-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: name,
+    onChange: e => setName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === "Enter") add();
+    },
+    placeholder: "Cosa serve…",
+    className: inp
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: add,
+    className: "px-4 rounded-lg bg-moss text-card text-[15px] active:scale-[.98] transition"
+  }, "+")), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mt-2"
+  }, /*#__PURE__*/React.createElement("select", {
+    value: cat,
+    onChange: e => setCat(e.target.value),
+    className: inp + " flex-1"
+  }, GEAR_CATS.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c,
+    value: c
+  }, c))), /*#__PURE__*/React.createElement("div", {
+    className: "flex rounded-lg border border-hair overflow-hidden"
+  }, [["have", "Ce l'ho"], ["buy", "Da comprare"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    onClick: () => setStatus(v),
+    className: "px-3 text-[12px] transition " + (status === v ? v === "buy" ? "bg-copper text-card" : "bg-moss text-card" : "bg-card text-slate")
+  }, l))))), tot > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "bg-card border border-hair rounded-2xl px-4 py-3 mb-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-baseline mb-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-[12px] text-mute uppercase tracking-wide"
+  }, "In valigia"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[13px] text-moss"
+  }, pct, "%")), /*#__PURE__*/React.createElement("div", {
+    className: "h-2 rounded-full bg-page overflow-hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-full bg-moss transition-all",
+    style: {
+      width: pct + "%"
+    }
+  })), toBuy > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "text-[12px] text-copper mt-2"
+  }, toBuy === 1 ? "1 cosa da comprare" : toBuy + " cose da comprare")), tot > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mb-3"
+  }, chip("all", "Tutto"), chip("buy", "Da comprare"), chip("todo", "Manca in valigia")), tot === 0 && /*#__PURE__*/React.createElement(Empty, {
+    text: "Nessun articolo. Scrivi cosa ti serve qui sopra, oppure parti dalla lista consigliata per l'Islanda."
+  }), shown.length === 0 && tot > 0 && /*#__PURE__*/React.createElement(Empty, {
+    text: filter === "buy" ? "Niente da comprare ✓" : "Tutto in valigia ✓"
+  }), groups.map(([c, arr]) => /*#__PURE__*/React.createElement("div", {
+    key: c,
+    className: "mb-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-mute uppercase tracking-wide mb-1.5"
+  }, c), arr.map(i => /*#__PURE__*/React.createElement(GearRow, {
+    key: i.id,
+    i: i,
+    onUpdate: p => update(i.id, p),
+    onRemove: () => remove(i.id)
+  })))), /*#__PURE__*/React.createElement("button", {
+    onClick: addSuggested,
+    className: "w-full mt-1 rounded-xl border border-hair bg-card py-2.5 text-[12px] text-slate active:scale-[.99] transition"
+  }, "Aggiungi lista consigliata per l'Islanda"));
+}
+function GearRow({
+  i,
+  onUpdate,
+  onRemove
+}) {
+  const buy = i.status === "buy";
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 bg-card border border-hair rounded-xl px-3 py-2.5 mb-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onUpdate({
+      packed: !i.packed
+    }),
+    "aria-label": "in valigia",
+    className: "w-6 h-6 shrink-0 rounded-md border flex items-center justify-center transition " + (i.packed ? "bg-moss border-moss text-card" : "border-hair text-transparent")
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "14",
+    height: "14",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "3",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M4 12l6 6L20 5"
+  }))), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 text-[14px] leading-snug " + (i.packed ? "text-mute line-through" : "text-ink")
+  }, i.name), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onUpdate({
+      status: buy ? "have" : "buy"
+    }),
+    className: "shrink-0 px-2.5 py-1 rounded-full text-[11px] border transition " + (buy ? "bg-copper/10 text-copper border-copper/30" : "bg-moss/10 text-moss border-moss/25")
+  }, buy ? "Da comprare" : "Ce l'ho"), /*#__PURE__*/React.createElement("button", {
+    onClick: onRemove,
+    "aria-label": "elimina",
+    className: "shrink-0 w-6 text-mute text-[16px] leading-none"
+  }, "×"));
 }
 
 /* ---------------- Impostazioni ---------------- */
