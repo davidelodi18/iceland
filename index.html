@@ -46,6 +46,36 @@ tailwind.config = {
   ::-webkit-scrollbar-thumb{ background:#C7CDCE; border-radius:3px; }
   @media (prefers-reduced-motion: no-preference){ .fade{ animation:fade .25s ease both; } }
   @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  /* ---- Report per esportazione PDF (visibile solo in stampa) ---- */
+  #report{ display:none; }
+  @media print{
+    html,body{ background:#fff !important; }
+    #app-ui{ display:none !important; }
+    #report{ display:block !important; }
+    @page{ size:A4; margin:14mm; }
+  }
+  #report{ font-family:Inter,system-ui,sans-serif; color:#1E2A2E; font-size:11px; }
+  #report h1{ font-family:Fraunces,Georgia,serif; font-size:22px; margin:0 0 2px; color:#274A57; }
+  #report .sub{ color:#6E7C80; font-size:10px; margin-bottom:16px; }
+  #report h2{ font-family:Fraunces,Georgia,serif; font-size:14px; margin:18px 0 6px; color:#274A57;
+              border-bottom:1px solid #D3D8D9; padding-bottom:3px; }
+  #report table{ width:100%; border-collapse:collapse; }
+  #report th{ text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.04em;
+              color:#6E7C80; font-weight:600; padding:4px 6px; border-bottom:1px solid #D3D8D9; }
+  #report td{ padding:5px 6px; border-bottom:1px solid #EBEEEE; vertical-align:top; }
+  #report td.n, #report th.n{ text-align:right; font-family:"IBM Plex Mono",ui-monospace,monospace; white-space:nowrap; }
+  #report .eur{ display:block; font-size:9px; color:#6E7C80; }
+  #report tr.tot td{ border-top:1px solid #1E2A2E; border-bottom:none; font-weight:600; }
+  #report .due{ color:#B4552E; }
+  #report .box{ border:1px solid #D3D8D9; border-radius:8px; padding:10px 12px; margin-top:8px; }
+  #report .big{ font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:18px; color:#274A57; }
+  #report .cols{ display:flex; gap:10px; }
+  #report .cols > div{ flex:1; }
+  #report .foot{ margin-top:18px; font-size:9px; color:#6E7C80; }
+  #report .mapwrap{ margin:6px 0 4px; }
+  #report .mapwrap svg{ width:100%; height:auto; }
+  @media print{ #report .mapwrap{ break-after:page; page-break-after:always; } }
 </style>
 </head>
 <body>
@@ -310,7 +340,8 @@ function App() {
   curRate = Number(s.eurIsk) > 0 ? Number(s.eurIsk) : 150;
   const A = s.nameA?.trim() || "Persona A";
   const B = s.nameB?.trim() || "Persona B";
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    id: "app-ui",
     className: "min-h-screen font-sans text-ink pb-28"
   }, /*#__PURE__*/React.createElement(Header, {
     s: s,
@@ -319,6 +350,9 @@ function App() {
   }), /*#__PURE__*/React.createElement("main", {
     className: "max-w-2xl mx-auto px-4"
   }, tab === "itinerario" && /*#__PURE__*/React.createElement(Itinerario, {
+    data: data,
+    commit: commit
+  }), tab === "mappa" && /*#__PURE__*/React.createElement(Mappa, {
     data: data,
     commit: commit
   }), tab === "alloggi" && /*#__PURE__*/React.createElement(Alloggi, {
@@ -349,6 +383,10 @@ function App() {
     },
     data: data,
     commit: commit
+  })), /*#__PURE__*/React.createElement(Report, {
+    data: data,
+    A: A,
+    B: B
   }));
 }
 
@@ -412,11 +450,11 @@ function TabBar({
   tab,
   setTab
 }) {
-  const tabs = [["itinerario", "Itinerario", "M9 20l-5.4 2.6L4 4l5-2 6 2 5-2-.4 12.6L15 18"], ["alloggi", "Alloggi", "M3 21V10l9-6 9 6v11h-6v-7h-6v7z"], ["spese", "Spese", "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"], ["riepilogo", "Saldo", "M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"]];
+  const tabs = [["itinerario", "Itinerario", "M9 20l-5.4 2.6L4 4l5-2 6 2 5-2-.4 12.6L15 18"], ["mappa", "Mappa", "M12 21s7-6.4 7-11a7 7 0 10-14 0c0 4.6 7 11 7 11z M12 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"], ["alloggi", "Alloggi", "M3 21V10l9-6 9 6v11h-6v-7h-6v7z"], ["spese", "Spese", "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"], ["riepilogo", "Saldo", "M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"]];
   return /*#__PURE__*/React.createElement("nav", {
     className: "fixed bottom-0 left-0 right-0 bg-card border-t border-hair z-20"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-2xl mx-auto grid grid-cols-4"
+    className: "max-w-2xl mx-auto grid grid-cols-5"
   }, tabs.map(([id, label, d]) => /*#__PURE__*/React.createElement("button", {
     key: id,
     onClick: () => setTab(id),
@@ -1180,7 +1218,7 @@ function Spese({
     label: "Da pagare",
     value: money(totDaPagare),
     sub: eurApprox(totDaPagare)
-  })), manage && /*#__PURE__*/React.createElement(CategoryManager, {
+  })), list.length > 0 && /*#__PURE__*/React.createElement(PdfButton, null), manage && /*#__PURE__*/React.createElement(CategoryManager, {
     data: data,
     cats: cats,
     commit: commit,
@@ -1537,7 +1575,7 @@ function Riepilogo({
   }), /*#__PURE__*/React.createElement(Stat, {
     label: "Tappe",
     value: `${stops.length}`
-  })));
+  })), /*#__PURE__*/React.createElement(PdfButton, null));
 }
 function PersonCard({
   name,
@@ -1933,6 +1971,709 @@ function fmtRange(a, b) {
   const s = new Date(a).toLocaleDateString("it-IT", o);
   if (!b) return s;
   return s + " – " + new Date(b).toLocaleDateString("it-IT", o);
+}
+
+/* ============================================================
+   MAPPA — infografica dell'Islanda con alloggi e itinerario
+   Proiezione Mercator, contorno da Natural Earth (10m).
+   ============================================================ */
+const MAPW = 1000,
+  MAPH = 680;
+const PRJ = {
+  minx: -24.539645396453950,
+  maxy: 90.128131017310800,
+  sc: 1000 / 11.03771037710377
+};
+const mLon = lon => (lon - PRJ.minx) * PRJ.sc;
+const mLat = lat => (PRJ.maxy - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * 180 / Math.PI) * PRJ.sc;
+const kmPx = (km, lat) => km / 111.32 / Math.cos(lat * Math.PI / 180) * PRJ.sc;
+const ICELAND_PATH = "M903.8,40.6L899.5,45.6L865.0,63.1L863.0,66.9L870.2,77.6L867.9,85.5L859.1,93.8L851.9,95.0L848.0,102.2L858.8,107.1L859.1,111.2L855.5,114.6L857.5,116.1L877.7,118.8L889.8,111.2L898.9,127.8L900.2,137.6L896.0,151.8L882.3,165.3L874.1,180.2L883.6,172.4L878.3,185.8L884.9,186.5L918.5,173.1L922.0,172.4L925.0,175.4L919.1,188.8L929.9,199.5L922.4,203.3L906.7,227.3L903.8,237.3L926.0,204.0L930.2,203.3L937.4,208.4L932.5,201.4L952.4,213.3L966.4,211.4L968.4,215.1L966.7,220.7L971.6,222.2L972.6,231.0L974.2,232.5L980.8,224.7L990.2,234.3L986.6,246.1L987.9,253.5L984.0,256.8L984.7,264.2L969.7,267.1L979.1,271.5L979.5,275.2L954.3,284.7L955.6,286.9L983.0,279.6L990.5,283.2L994.1,289.4L986.3,298.2L951.7,302.6L954.7,304.8L988.6,302.6L987.3,311.3L977.8,314.6L985.0,314.6L986.6,317.5L983.4,320.4L988.6,323.3L998.4,308.4L997.7,324.8L1000.0,328.1L997.7,333.9L990.2,338.2L992.5,344.0L987.0,348.4L974.6,348.0L970.3,339.3L951.7,327.7L955.3,333.9L952.1,337.5L933.8,338.2L962.2,342.6L971.0,354.1L980.4,358.5L982.1,361.7L978.5,364.6L966.1,359.9L956.9,361.7L949.8,359.9L955.3,363.9L968.4,366.8L974.2,371.8L975.9,376.9L971.3,381.2L960.5,378.3L957.9,380.8L967.7,384.8L969.3,388.7L953.7,387.7L950.4,392.3L956.0,400.9L950.4,405.2L930.2,409.5L924.0,406.0L916.8,390.5L908.3,387.7L913.6,390.5L912.6,396.6L920.1,400.9L921.1,408.5L930.5,416.0L929.9,419.9L914.9,414.5L910.3,418.5L917.2,424.2L917.8,428.5L915.2,431.3L903.1,431.3L906.7,440.2L910.3,441.7L914.5,439.2L923.4,429.6L912.6,444.5L905.4,471.8L887.1,476.1L903.5,469.0L890.4,466.2L890.1,470.4L882.9,478.6L872.8,489.2L874.1,483.2L868.9,489.2L870.5,493.4L874.1,492.0L875.4,497.6L870.5,501.2L862.7,500.8L854.5,493.4L843.8,500.5L845.4,493.4L841.2,494.1L837.9,486.7L838.9,494.8L833.7,492.0L834.6,487.8L831.1,479.3L821.3,473.3L827.8,476.8L831.4,486.0L828.1,486.0L830.4,492.3L828.1,499.0L820.9,499.0L819.0,500.5L824.5,501.9L822.2,504.0L803.3,510.7L802.0,507.5L791.6,517.7L801.0,516.3L797.8,518.8L774.3,526.1L771.0,529.3L775.3,530.3L759.9,544.7L758.0,542.2L757.3,547.5L745.6,552.4L742.0,558.7L745.6,556.6L743.3,561.4L730.9,575.7L728.3,577.1L731.9,571.5L718.2,583.0L706.1,586.5L702.9,584.4L705.8,587.2L702.9,588.6L701.6,596.9L700.6,591.4L693.4,583.7L690.8,596.2L689.5,583.7L689.8,597.2L686.2,599.7L688.5,577.1L685.9,572.6L686.2,583.0L680.4,587.2L684.3,595.5L682.6,597.6L672.5,598.3L668.0,595.5L664.7,597.6L664.4,594.1L653.3,601.1L632.4,607.3L633.4,599.7L631.4,604.9L628.8,603.8L629.5,608.3L617.7,616.6L621.0,609.7L626.5,608.3L618.4,601.1L618.4,606.6L608.9,606.6L610.9,609.4L603.4,611.4L599.8,622.1L595.6,622.5L596.9,626.3L601.4,623.5L610.9,623.5L604.7,633.2L599.2,630.8L595.2,633.5L597.2,637.6L605.3,636.3L595.6,653.8L574.7,664.1L571.8,660.0L581.9,651.4L571.8,652.8L563.9,648.6L568.5,665.4L576.0,665.8L556.4,668.9L526.1,679.5L504.2,673.7L496.7,675.7L489.9,670.9L487.9,673.7L474.6,670.6L452.1,658.3L437.4,654.1L435.1,648.6L422.7,648.6L432.2,651.4L408.3,650.0L406.7,647.3L404.1,647.3L404.8,650.0L394.3,649.3L379.3,636.3L384.9,636.3L380.6,634.9L381.3,630.8L378.0,634.2L374.4,631.8L377.4,631.8L376.4,628.7L367.9,616.3L365.6,618.0L371.8,629.0L363.0,620.1L360.7,609.4L366.3,604.9L372.1,603.8L383.2,611.1L371.2,599.7L374.1,594.8L373.1,588.9L371.5,594.8L360.4,606.2L359.1,614.9L341.5,602.4L350.6,605.2L356.5,603.8L353.9,602.4L355.2,599.7L346.4,601.1L349.6,595.9L349.3,584.1L345.7,583.0L348.0,588.2L340.8,597.9L335.9,596.9L337.2,601.1L305.3,581.6L303.0,570.2L314.1,569.8L316.7,567.4L299.4,565.6L293.5,572.9L301.7,579.9L289.0,579.9L287.3,587.2L260.9,590.7L248.9,582.7L224.1,590.0L199.6,584.4L194.4,590.0L191.5,587.2L182.6,592.7L172.9,592.0L167.3,594.8L165.0,591.4L166.7,582.0L164.1,578.5L168.0,567.4L172.5,566.7L164.1,561.4L166.3,538.4L174.8,543.3L179.4,557.3L183.0,560.4L194.1,560.4L198.6,552.4L207.4,548.9L212.0,551.7L226.4,545.4L233.5,540.5L229.6,535.9L226.0,535.9L227.0,532.8L231.6,531.0L233.5,531.7L230.9,533.5L236.1,534.2L237.8,530.3L226.0,523.3L228.6,521.2L242.3,523.7L246.9,527.9L249.5,526.1L245.9,524.7L248.2,521.9L246.6,520.5L255.1,520.5L257.0,516.3L252.1,518.4L252.1,514.5L256.4,511.7L246.9,511.7L244.9,506.1L236.5,507.5L252.4,484.2L261.6,483.5L258.3,481.8L263.9,477.9L278.5,480.7L282.1,477.9L283.1,476.1L276.9,477.5L279.8,473.3L263.5,472.2L255.7,474.0L246.2,485.3L233.5,494.5L221.1,490.6L231.6,478.9L242.7,474.7L229.0,476.4L226.0,471.8L232.2,450.9L250.2,443.1L246.6,438.8L257.0,428.5L261.9,428.5L261.6,432.4L268.1,436.7L275.6,437.0L269.4,436.0L264.5,429.9L268.1,427.1L259.0,427.1L265.8,420.6L274.3,419.9L265.2,418.5L257.0,424.2L260.9,416.7L253.8,428.5L242.7,436.0L243.3,438.8L238.1,438.5L229.3,446.6L226.7,437.7L221.8,457.7L215.3,460.1L209.7,451.6L206.8,454.5L209.7,441.7L206.8,439.9L208.1,436.0L199.3,439.9L197.0,433.8L198.6,427.1L190.2,416.7L197.0,421.7L201.2,414.2L199.9,411.3L210.4,406.0L213.0,400.9L193.7,414.5L191.8,412.8L201.2,398.1L196.3,394.8L190.5,395.2L193.1,383.3L190.2,387.7L188.8,385.1L186.9,387.7L180.4,386.9L176.5,390.9L178.7,393.8L170.6,395.6L168.3,393.8L172.2,393.0L169.3,387.7L159.5,387.7L165.7,392.3L163.4,393.8L157.2,389.5L122.3,387.3L117.1,381.9L103.4,383.3L98.2,389.8L87.4,386.2L89.0,384.1L82.8,389.5L78.3,400.9L63.9,404.2L53.8,396.6L43.4,368.9L62.6,360.6L71.8,365.7L81.5,367.1L89.7,362.5L93.0,357.0L105.0,357.4L103.7,352.7L107.6,352.3L108.0,357.4L111.9,355.6L112.5,362.1L115.8,361.4L119.0,356.3L118.1,345.5L124.3,341.1L131.8,342.6L124.9,355.6L129.8,363.2L129.5,354.9L137.6,342.9L140.2,342.6L144.8,348.4L158.8,339.7L151.0,338.2L165.0,329.2L167.0,335.0L162.1,339.7L167.6,338.2L168.9,344.0L177.4,349.8L173.2,342.6L180.7,334.2L195.7,333.1L215.9,339.7L219.2,336.8L231.6,339.7L245.9,338.2L248.2,333.5L244.0,330.6L253.8,311.3L254.1,304.0L251.1,300.8L247.2,301.1L245.3,307.3L227.0,320.8L201.2,315.7L193.7,309.9L183.6,312.4L179.7,309.1L188.8,305.5L180.0,305.5L185.6,295.3L191.5,291.3L191.1,288.0L195.7,288.0L199.3,281.8L212.0,277.0L229.6,263.4L230.9,259.8L235.8,262.3L234.8,257.9L257.7,247.6L248.9,250.6L232.2,250.6L235.8,244.7L230.9,235.8L226.0,237.3L224.4,241.0L219.8,231.0L220.2,238.0L213.0,251.3L207.1,252.0L195.0,239.1L198.6,234.3L215.3,228.4L216.6,220.7L220.5,216.2L205.2,230.7L198.6,231.0L203.5,223.6L196.3,229.2L192.4,226.6L193.1,232.1L186.6,235.8L180.7,208.1L180.7,224.0L176.8,229.5L172.9,222.9L170.6,231.4L166.0,221.8L168.3,210.3L161.4,208.8L163.7,236.9L158.8,235.8L157.9,229.9L149.7,228.4L158.2,217.7L152.6,211.4L148.1,222.9L143.8,213.3L142.9,223.6L132.7,229.2L125.2,223.6L125.6,219.2L123.0,220.7L123.0,234.3L118.4,240.2L110.9,239.9L102.4,234.3L102.4,237.3L94.9,242.1L79.9,243.2L74.7,253.5L58.1,258.3L50.2,255.0L50.2,243.2L47.3,246.1L45.0,242.8L31.0,237.3L5.2,239.9L0.0,235.8L15.0,222.2L15.7,211.4L21.5,207.0L36.5,214.0L58.7,232.5L66.5,229.5L58.4,228.4L41.1,204.4L54.8,207.0L66.5,213.3L62.3,207.0L44.7,196.9L37.8,184.7L36.5,173.9L40.4,170.5L82.5,192.1L88.1,199.5L88.7,212.5L94.3,205.5L96.2,208.4L104.4,207.0L102.4,202.5L113.5,198.1L97.8,197.3L90.7,188.4L97.2,184.7L99.8,186.5L111.5,182.8L117.4,184.7L119.0,182.8L116.8,180.2L122.3,175.4L110.6,180.9L86.1,180.2L78.3,175.4L73.4,177.2L65.9,167.9L61.0,154.8L61.3,148.1L66.9,143.6L78.9,148.1L85.1,154.1L92.6,152.6L117.4,163.4L120.4,161.9L87.1,148.1L65.9,124.4L66.2,114.2L71.4,110.1L92.6,121.0L100.5,120.6L105.7,129.7L101.1,119.1L90.0,113.9L78.9,101.0L89.7,97.6L103.7,105.2L95.9,96.1L85.1,94.6L88.7,87.8L95.6,85.5L97.8,81.3L111.9,85.5L123.9,93.1L129.5,102.2L129.8,110.1L134.4,102.9L137.0,102.9L140.9,109.3L141.6,119.5L134.1,134.6L145.8,116.1L148.4,125.5L152.6,120.6L153.9,122.1L150.4,132.7L144.8,139.1L150.0,137.9L155.6,125.9L155.9,146.6L160.8,116.1L168.3,114.6L177.8,131.9L171.2,164.2L181.3,132.7L188.5,140.2L190.2,148.1L191.8,143.6L187.5,163.4L191.1,161.2L197.3,145.1L191.8,126.7L186.2,120.6L189.5,110.1L195.7,105.2L185.9,110.1L173.2,101.0L151.7,91.6L145.1,84.8L141.6,74.5L162.1,68.4L175.1,71.9L180.0,77.6L179.4,71.5L196.7,65.4L184.6,67.3L180.7,65.4L179.4,63.1L187.5,57.8L185.6,54.7L176.1,61.6L165.7,60.8L168.9,48.3L175.1,43.7L155.6,56.3L157.5,45.2L154.6,46.7L144.8,59.7L126.9,53.6L122.3,47.5L123.6,45.2L135.4,46.4L137.3,39.1L127.2,29.9L130.1,27.6L138.3,33.0L136.7,28.0L146.4,26.5L151.0,31.8L151.3,28.0L143.8,22.3L154.6,22.6L167.0,33.0L178.1,22.3L191.5,31.1L188.2,22.3L191.1,22.6L198.3,38.7L205.8,42.9L207.8,50.5L211.7,51.3L209.4,53.6L210.4,66.9L214.6,63.9L218.5,66.9L222.1,62.4L222.1,66.9L231.9,65.4L237.1,73.0L230.9,79.4L235.8,77.6L243.3,84.0L246.9,82.5L252.8,85.5L255.1,108.6L257.0,111.2L262.6,111.2L260.3,122.1L264.5,118.4L262.6,108.6L271.0,105.2L274.6,110.8L270.1,116.9L272.3,121.4L274.6,123.3L284.4,120.6L290.6,125.2L291.9,129.7L265.8,136.1L267.4,139.1L283.4,134.2L286.4,136.1L281.1,142.1L290.9,139.4L293.2,141.3L294.8,149.6L291.3,154.1L295.5,158.9L289.3,172.4L277.6,178.3L290.6,184.7L280.5,195.5L268.1,195.1L258.6,178.3L250.2,178.3L256.4,181.3L260.3,187.3L258.3,195.1L263.2,204.4L283.1,207.3L283.4,212.9L276.9,223.6L291.6,215.1L293.5,224.4L291.6,232.5L277.6,249.1L292.2,241.7L301.4,250.9L303.3,278.8L312.5,309.9L314.7,305.5L309.8,288.0L314.1,275.5L311.8,249.5L312.8,246.1L315.7,248.0L324.2,269.3L328.4,271.5L321.9,239.5L328.1,215.1L350.0,194.7L354.9,199.9L353.6,227.7L355.8,226.6L356.2,217.3L359.1,220.7L358.8,229.5L363.7,237.3L368.6,238.4L372.5,226.6L369.2,222.2L363.3,220.7L374.1,216.2L376.1,231.0L376.1,219.2L382.6,202.5L386.8,201.4L383.2,195.1L386.8,190.6L386.8,178.0L380.6,166.4L382.9,162.7L381.9,155.9L370.5,120.6L374.4,106.7L388.1,104.0L394.7,97.6L398.9,99.5L402.8,97.6L422.0,148.1L437.7,155.9L444.9,182.1L451.4,186.2L452.7,179.8L455.3,180.2L461.2,183.2L460.5,187.3L464.1,181.7L465.8,163.4L460.9,143.6L455.6,136.1L456.6,131.9L464.4,125.5L461.2,113.9L469.0,107.4L481.1,105.2L487.6,109.0L489.6,103.7L489.9,107.1L496.7,111.2L492.5,102.2L494.8,91.6L506.8,84.4L509.8,85.9L509.1,93.1L513.4,82.5L517.6,81.7L522.2,84.0L519.6,95.4L527.1,88.5L529.7,89.3L536.2,97.6L532.6,107.1L538.5,103.7L543.1,108.6L545.7,120.6L543.7,132.7L562.0,139.1L568.8,155.6L572.7,156.3L576.3,186.2L584.1,195.1L586.8,205.5L587.1,194.7L582.5,186.5L586.8,168.3L583.5,149.6L571.8,140.6L572.4,134.6L565.6,123.7L563.9,114.2L563.3,93.5L566.9,86.3L584.8,90.1L587.7,93.8L596.5,91.2L600.5,93.1L602.7,101.0L609.3,101.8L618.4,113.5L633.4,146.6L630.8,132.7L638.3,129.7L627.9,128.5L642.2,128.2L645.8,136.1L650.0,108.6L659.5,98.0L660.8,86.3L668.9,81.7L669.9,77.6L684.0,82.5L689.2,96.1L687.9,101.0L690.2,102.2L693.7,96.9L705.2,93.8L708.4,94.6L702.9,97.6L705.5,101.8L710.4,94.6L719.5,105.2L711.4,90.1L725.7,82.5L727.7,82.5L717.2,90.1L727.0,87.0L735.2,94.6L729.6,84.8L735.5,62.7L727.0,44.8L725.7,33.0L727.7,31.5L721.8,18.8L724.4,13.1L728.3,17.3L730.6,11.1L734.8,10.0L736.5,18.8L735.8,14.2L740.7,11.1L745.6,15.7L745.3,18.8L749.2,17.3L752.4,10.4L754.1,14.2L756.7,7.3L766.5,8.8L771.7,6.2L783.4,15.7L779.8,20.3L779.2,31.8L789.0,31.5L788.6,36.0L800.4,38.3L802.7,49.8L794.2,62.4L795.2,65.4L801.7,67.7L801.0,74.5L816.4,76.4L818.0,82.1L829.7,93.5L834.3,82.9L834.3,68.4L854.5,64.6L855.5,59.3L862.0,55.1L865.0,46.0L871.2,40.6L878.7,39.1L886.5,43.7L903.8,40.6ZM615.1,614.2L613.8,621.4L613.5,618.0L608.6,619.4L615.1,614.2ZM591.7,0.0L594.6,3.5L592.6,6.9L591.7,0.0ZM387.5,669.6L385.8,678.1L383.9,669.6L387.5,669.6ZM558.1,124.4L559.0,131.9L555.4,121.0L558.1,124.4Z";
+const RING = [
+[64.1466,-21.9426],[64.100,-21.750],[64.000,-21.186],[63.933,-20.997],[63.870,-20.700],
+[63.833,-20.400],[63.749,-20.222],[63.660,-20.050],[63.616,-19.993],[63.532,-19.511],
+[63.450,-19.200],[63.418,-19.006],[63.500,-18.750],[63.640,-18.400],[63.791,-18.058],
+[63.870,-17.700],[63.930,-17.300],[64.016,-16.966],[64.030,-16.500],[64.048,-16.179],
+[64.120,-15.800],[64.180,-15.500],[64.253,-15.208],[64.330,-15.000],[64.450,-14.800],
+[64.560,-14.480],[64.657,-14.283],[64.750,-14.100],[64.789,-14.006],[64.950,-14.250],
+[65.080,-14.400],[65.264,-14.395],[65.330,-14.900],[65.450,-15.400],[65.550,-16.100],
+[65.643,-16.913],[65.660,-17.250],[65.683,-17.550],[65.688,-18.090],[65.600,-18.500],
+[65.530,-19.440],[65.620,-19.900],[65.660,-20.283],[65.470,-20.800],[65.250,-21.000],
+[65.000,-21.300],[64.770,-21.550],[64.538,-21.921],[64.400,-21.850],[64.300,-21.700],
+[64.220,-21.600],[64.167,-21.688],[64.1466,-21.9426]
+];
+const GLACIERS = [{
+  n: "Vatnajökull",
+  lat: 64.46,
+  lon: -16.80,
+  rx: 76,
+  ry: 42,
+  rot: -8,
+  lab: 1
+}, {
+  n: "Langjökull",
+  lat: 64.72,
+  lon: -20.15,
+  rx: 14,
+  ry: 25,
+  rot: 12,
+  lab: 1
+}, {
+  n: "Hofsjökull",
+  lat: 64.80,
+  lon: -18.80,
+  rx: 19,
+  ry: 19,
+  rot: 0,
+  lab: 1
+}, {
+  n: "Mýrdalsjökull",
+  lat: 63.65,
+  lon: -19.10,
+  rx: 16,
+  ry: 12,
+  rot: 0,
+  lab: 0
+}, {
+  n: "Drangajökull",
+  lat: 66.18,
+  lon: -22.27,
+  rx: 10,
+  ry: 8,
+  rot: 0,
+  lab: 0
+}, {
+  n: "Snæfellsjökull",
+  lat: 64.81,
+  lon: -23.78,
+  rx: 6,
+  ry: 5,
+  rot: 0,
+  lab: 0
+}];
+const PLACES = {
+"reykjavik":[64.1466,-21.9426],"reykjavík":[64.1466,-21.9426],"keflavik":[63.985,-22.605],
+"keflavík":[63.985,-22.605],"kef":[63.985,-22.605],"reykjanesbaer":[64.00,-22.56],
+"grindavik":[63.842,-22.427],"blue lagoon":[63.880,-22.449],"blaa lonid":[63.880,-22.449],
+"hafnarfjordur":[64.067,-21.940],"kopavogur":[64.111,-21.913],"mosfellsbaer":[64.167,-21.688],
+"thingvellir":[64.256,-21.130],"geysir":[64.310,-20.301],"gullfoss":[64.327,-20.121],
+"selfoss":[63.933,-20.997],"hveragerdi":[64.000,-21.186],"hella":[63.833,-20.400],
+"hvolsvollur":[63.749,-20.222],"seljalandsfoss":[63.616,-19.993],"skogafoss":[63.532,-19.511],
+"skogar":[63.529,-19.512],"dyrholaey":[63.401,-19.126],"vik":[63.418,-19.006],
+"reynisfjara":[63.406,-19.044],"myrdalsjokull":[63.650,-19.100],"thorsmork":[63.680,-19.470],
+"landmannalaugar":[63.990,-19.061],"vestmannaeyjar":[63.441,-20.273],
+"kirkjubaejarklaustur":[63.791,-18.058],"fjadrargljufur":[63.771,-18.172],
+"skaftafell":[64.016,-16.966],"svartifoss":[64.027,-16.975],"jokulsarlon":[64.048,-16.179],
+"diamond beach":[64.043,-16.175],"hofn":[64.253,-15.208],"stokksnes":[64.245,-14.988],
+"vestrahorn":[64.245,-14.988],"djupivogur":[64.657,-14.283],"breiddalsvik":[64.789,-14.006],
+"egilsstadir":[65.264,-14.395],"seydisfjordur":[65.262,-13.999],"myvatn":[65.600,-16.990],
+"reykjahlid":[65.643,-16.913],"dettifoss":[65.814,-16.384],"husavik":[66.045,-17.338],
+"godafoss":[65.683,-17.550],"akureyri":[65.688,-18.090],"siglufjordur":[66.150,-18.909],
+"varmahlid":[65.530,-19.440],"saudarkrokur":[65.746,-19.640],"blonduos":[65.660,-20.283],
+"hvammstangi":[65.396,-20.938],"borgarnes":[64.538,-21.921],"akranes":[64.322,-22.075],
+"bifrost":[64.770,-21.550],"stykkisholmur":[65.075,-22.727],"grundarfjordur":[64.922,-23.808],
+"kirkjufell":[64.927,-23.812],"olafsvik":[64.894,-23.712],"arnarstapi":[64.767,-23.626],
+"budir":[64.821,-23.386],"snaefellsjokull":[64.808,-23.777],"isafjordur":[66.075,-23.135],
+"patreksfjordur":[65.594,-23.999],"dynjandi":[65.733,-23.203],"holmavik":[65.706,-21.688],
+"hvitserkur":[65.606,-20.638],"krysuvik":[63.892,-22.055],"eyrarbakki":[63.865,-21.152],
+"vatnajokull":[64.416,-16.800],"hofn i hornafirdi":[64.253,-15.208]
+};
+// città di riferimento sempre disegnate (per orientarsi)
+const REF = [["Reykjavík", 64.1466, -21.9426], ["Keflavík", 63.985, -22.605], ["Borgarnes", 64.538, -21.921], ["Ísafjörður", 66.075, -23.135], ["Akureyri", 65.688, -18.090], ["Húsavík", 66.045, -17.338], ["Mývatn", 65.600, -16.990], ["Egilsstaðir", 65.264, -14.395], ["Höfn", 64.253, -15.208], ["Vík", 63.418, -19.006], ["Selfoss", 63.933, -20.997], ["Blönduós", 65.660, -20.283], ["Kirkjubæjarklaustur", 63.791, -18.058], ["Jökulsárlón", 64.048, -16.179], ["Stykkishólmur", 65.075, -22.727]];
+const normPlace = s => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ð/g, "d").replace(/þ/g, "th").replace(/æ/g, "ae").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+function lookupPlace() {
+  for (const raw of arguments) {
+    const q = normPlace(raw);
+    if (!q) continue;
+    if (PLACES[q]) return PLACES[q];
+    let best = null,
+      bl = 0;
+    for (const k in PLACES) {
+      if (k.length > 3 && (q.indexOf(k) >= 0 || k.indexOf(q) >= 0) && k.length > bl) {
+        best = PLACES[k];
+        bl = k.length;
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+const RAD = d => d * Math.PI / 180;
+function hav(a, b) {
+  const dLat = RAD(b[0] - a[0]),
+    dLon = RAD(b[1] - a[1]);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(RAD(a[0])) * Math.cos(RAD(b[0])) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(x));
+}
+function ringPath(a, b) {
+  const n = RING.length - 1;
+  const near = p => {
+    let bi = 0,
+      bd = 1e9;
+    for (let i = 0; i < n; i++) {
+      const d = hav(p, RING[i]);
+      if (d < bd) {
+        bd = d;
+        bi = i;
+      }
+    }
+    return bi;
+  };
+  const i = near(a),
+    j = near(b);
+  const fw = (j - i + n) % n,
+    bw = (i - j + n) % n;
+  const idx = [];
+  if (fw <= bw) for (let k = 0; k <= fw; k++) idx.push((i + k) % n);else for (let k = 0; k <= bw; k++) idx.push((i - k + n) % n);
+  const pts = [a, ...idx.map(k => RING[k]), b];
+  // scarta i punti troppo vicini agli estremi (evita cappi)
+  const out = [pts[0]];
+  for (let k = 1; k < pts.length - 1; k++) {
+    if (hav(pts[k], pts[0]) > 6 && hav(pts[k], pts[pts.length - 1]) > 6) out.push(pts[k]);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+function offsetPath(pts, off) {
+  const P = pts.map(p => [mLon(p[1]), mLat(p[0])]);
+  if (!off) return P;
+  return P.map((p, i) => {
+    const a = P[Math.max(0, i - 1)],
+      b = P[Math.min(P.length - 1, i + 1)];
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1],
+      L = Math.hypot(dx, dy) || 1;
+    return [p[0] + -dy / L * off, p[1] + dx / L * off];
+  });
+}
+function pathKm(pts) {
+  let t = 0;
+  for (let i = 1; i < pts.length; i++) t += hav(pts[i - 1], pts[i]);
+  return t * 1.15; // le corde sottostimano il percorso reale
+}
+/* --- costruzione delle tappe dal contenuto dell'app --- */
+function tripLegs(data) {
+  const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
+  const stops = toArr(data.stops).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const missing = [];
+  const seq = [];
+  const push = (label, sub, coord, kind, extra) => {
+    if (!coord) {
+      missing.push(label);
+      return;
+    }
+    const prev = seq[seq.length - 1];
+    if (prev && Math.abs(prev.lat - coord[0]) < 0.01 && Math.abs(prev.lon - coord[1]) < 0.01) {
+      prev.sub = prev.sub && prev.sub !== sub ? prev.sub + " · " + sub : sub || prev.sub;
+      return;
+    }
+    seq.push({
+      label,
+      sub,
+      lat: coord[0],
+      lon: coord[1],
+      kind,
+      ...extra
+    });
+  };
+  if (stops.length >= 2) {
+    stops.forEach(st => {
+      const c = st.lat != null && st.lon != null ? [st.lat, st.lon] : lookupPlace(st.place, st.name);
+      push(st.name || st.place || "Tappa", [st.place && st.place !== st.name ? st.place : "", st.nights > 0 ? st.nights + (st.nights == 1 ? " notte" : " notti") : ""].filter(Boolean).join(" · "), c, "stop", {
+        km: st.kmManual ?? st.kmAuto ?? null
+      });
+    });
+  } else {
+    stays.forEach(s => {
+      const c = s.lat != null && s.lon != null ? [s.lat, s.lon] : lookupPlace(s.place, s.name);
+      push(s.place || s.name || "Alloggio", fmtRange(s.checkIn, s.checkOut), c, "stay", {
+        stay: s
+      });
+    });
+  }
+  const legs = [];
+  for (let i = 1; i < seq.length; i++) {
+    const pts = ringPath([seq[i - 1].lat, seq[i - 1].lon], [seq[i].lat, seq[i].lon]);
+    const km = seq[i].km != null ? seq[i].km : Math.round(pathKm(pts) / 5) * 5;
+    legs.push({
+      from: seq[i - 1],
+      to: seq[i],
+      pts,
+      km,
+      real: seq[i].km != null
+    });
+  }
+  return {
+    seq,
+    legs,
+    missing
+  };
+}
+/* --- generazione SVG --- */
+function buildMapSVG(data, opts) {
+  opts = opts || {};
+  const {
+    seq,
+    legs
+  } = tripLegs(data);
+  const X = p => mLon(p[1]).toFixed(1),
+    Y = p => mLat(p[0]).toFixed(1);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MAPW} 720" width="100%" preserveAspectRatio="xMidYMid meet" font-family="Inter,system-ui,sans-serif">
+  <rect x="0" y="0" width="${MAPW}" height="720" fill="#DDE5E7"/>
+  <path d="${ICELAND_PATH}" fill="#EAEDEB" stroke="#9FB0B4" stroke-width="1.1" stroke-linejoin="round"/>`;
+  GLACIERS.forEach(g => {
+    const cx = mLon(g.lon),
+      cy = mLat(g.lat);
+    s += `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${kmPx(g.rx, g.lat).toFixed(1)}" ry="${kmPx(g.ry, g.lat).toFixed(1)}" fill="#FFFFFF" opacity=".82" transform="rotate(${g.rot} ${cx.toFixed(1)} ${cy.toFixed(1)})"/>`;
+  });
+  GLACIERS.filter(g => g.lab).forEach(g => {
+    s += `<text x="${mLon(g.lon).toFixed(1)}" y="${mLat(g.lat).toFixed(1)}" font-size="12" fill="#8FA3A8" text-anchor="middle" letter-spacing="1.5">${esc(g.n.toUpperCase())}</text>`;
+  });
+  // anello stradale
+  s += `<polyline points="${RING.map(p => X(p) + "," + Y(p)).join(" ")}" fill="none" stroke="#8CA1A7" stroke-width="2.6" stroke-dasharray="7 6" stroke-linecap="round"/>`;
+  /* --- posizione delle etichette delle tappe (serve prima, per non
+        disegnarci sopra le città di riferimento) --- */
+  const groups = [];
+  seq.forEach((p, i) => {
+    const g = groups.find(q => Math.abs(q.lat - p.lat) < 0.02 && Math.abs(q.lon - p.lon) < 0.02);
+    if (g) {
+      g.nums.push(i + 1);
+      if (p.sub && g.subs.indexOf(p.sub) < 0) g.subs.push(p.sub);
+      g.unpaid = g.unpaid || p.stay && p.stay.paidBy === "none";
+    } else groups.push({
+      lat: p.lat,
+      lon: p.lon,
+      label: p.label,
+      nums: [i + 1],
+      subs: p.sub ? [p.sub] : [],
+      unpaid: !!(p.stay && p.stay.paidBy === "none")
+    });
+  });
+  const boxes = [{
+    x: 8,
+    y: 4,
+    w: 300,
+    h: 56
+  },
+  // titolo
+  {
+    x: 694,
+    y: 554,
+    w: 298,
+    h: 172
+  } // legenda + scala
+  ];
+  const fits = b => !boxes.some(o => !(b.x + b.w < o.x || o.x + o.w < b.x || b.y + b.h < o.y || o.y + o.h < b.y)) && b.x > 2 && b.x + b.w < MAPW - 2 && b.y > 2 && b.y + b.h < 700;
+  groups.forEach(g => {
+    const x = mLon(g.lon),
+      y = mLat(g.lat);
+    g.x = x;
+    g.y = y;
+    g.t1 = g.nums.join("·") + ". " + g.label;
+    g.t2 = g.subs.join(" · ");
+    const w = Math.max(g.t1.length * 7.1, g.t2.length * 6.2) + 14;
+    const h = g.t2 ? 34 : 22;
+    const cands = [[16, -h / 2], [-w - 16, -h / 2], [12, 12], [-w - 12, 12], [12, -h - 14], [-w - 12, -h - 14], [-w / 2, -h - 18], [-w / 2, 18]];
+    let box = null;
+    for (const c of cands) {
+      const b = {
+        x: x + c[0],
+        y: y + c[1],
+        w,
+        h
+      };
+      if (fits(b)) {
+        box = b;
+        break;
+      }
+    }
+    if (!box) box = {
+      x: x + 16,
+      y: y - h / 2,
+      w,
+      h
+    };
+    boxes.push(box);
+    g.box = box;
+  });
+  // città di riferimento (saltate se finirebbero sotto un'etichetta)
+  const onRoute = groups.map(p => normPlace(p.label));
+  REF.forEach(([n, la, lo]) => {
+    if (onRoute.some(r => r && (normPlace(n).indexOf(r) >= 0 || r.indexOf(normPlace(n)) >= 0))) return;
+    const x = mLon(lo),
+      y = mLat(la);
+    const b = {
+      x: x - 4,
+      y: y - 9,
+      w: n.length * 6.6 + 12,
+      h: 18
+    };
+    if (!fits(b)) return;
+    boxes.push(b);
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#FFF" stroke="#7F969C" stroke-width="1.6"/>`;
+    s += `<text x="${(x + 7).toFixed(1)}" y="${(y + 4).toFixed(1)}" font-size="12.5" fill="#5A7C86">${esc(n)}</text>`;
+  });
+  // percorso
+  legs.forEach((l, i) => {
+    let over = 0;
+    for (let j = 0; j < i; j++) {
+      const c = l.pts.filter(p => legs[j].pts.some(q => hav(p, q) < 8)).length / l.pts.length;
+      if (c > over) over = c;
+    }
+    l.px = offsetPath(l.pts, over > 0.45 ? 6.5 : 0);
+    l.d = "M" + l.px.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join("L");
+  });
+  legs.forEach(l => {
+    s += `<path d="${l.d}" fill="none" stroke="#FFFFFF" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
+  });
+  legs.forEach(l => {
+    s += `<path d="${l.d}" fill="none" stroke="#B4552E" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  });
+  legs.forEach(l => {
+    const m = Math.max(1, Math.floor(l.px.length / 2));
+    const a = l.px[m - 1],
+      b = l.px[m];
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+    const cx = (a[0] + b[0]) / 2,
+      cy = (a[1] + b[1]) / 2;
+    s += `<path d="M-6,-6.5 L8,0 L-6,6.5 Z" fill="#FFFFFF" transform="translate(${cx.toFixed(1)},${cy.toFixed(1)}) rotate(${ang.toFixed(0)}) scale(1.5)" opacity=".9"/>`;
+    s += `<path d="M-6,-6.5 L8,0 L-6,6.5 Z" fill="#8E3F20" transform="translate(${cx.toFixed(1)},${cy.toFixed(1)}) rotate(${ang.toFixed(0)})"/>`;
+    // etichetta km: cerca un punto libero lungo la tratta
+    const lab = `${l.real ? "" : "≈ "}${num(Math.round(l.km))} km`;
+    const w = lab.length * 7.6,
+      hh = 17;
+    let pos = null;
+    for (const f of [.5, .35, .65, .25, .75, .45, .55]) {
+      const p = l.px[Math.min(l.px.length - 1, Math.round(f * (l.px.length - 1)))];
+      for (const dy of [-15, 19, -28, 30]) {
+        const box = {
+          x: p[0] - w / 2,
+          y: p[1] + dy - 12,
+          w,
+          h: hh
+        };
+        if (fits(box)) {
+          pos = [p[0], p[1] + dy];
+          boxes.push(box);
+          break;
+        }
+      }
+      if (pos) break;
+    }
+    if (!pos) pos = [cx, cy - 15];
+    s += `<text x="${pos[0].toFixed(1)}" y="${pos[1].toFixed(1)}" font-size="13" font-weight="700" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" text-anchor="middle">${lab}</text>`;
+    s += `<text x="${pos[0].toFixed(1)}" y="${pos[1].toFixed(1)}" font-size="13" font-weight="700" fill="#8E3F20" text-anchor="middle">${lab}</text>`;
+  });
+  // etichette tappe
+  groups.forEach(g => {
+    const box = g.box;
+    const lx = box.x < g.x ? box.x + box.w : box.x;
+    s += `<line x1="${g.x.toFixed(1)}" y1="${g.y.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${(box.y + box.h / 2).toFixed(1)}" stroke="#B4552E" stroke-width="1.3" opacity=".6"/>`;
+    s += `<rect x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h}" rx="6" fill="#FFFFFF" opacity=".94" stroke="#D3D8D9"/>`;
+    s += `<text x="${(box.x + 7).toFixed(1)}" y="${(box.y + 15).toFixed(1)}" font-size="13.5" font-weight="600" fill="#1E2A2E">${esc(g.t1)}</text>`;
+    if (g.t2) s += `<text x="${(box.x + 7).toFixed(1)}" y="${(box.y + 28).toFixed(1)}" font-size="11.5" fill="#6E7C80">${esc(g.t2)}</text>`;
+  });
+  // pin numerati
+  groups.forEach(g => {
+    const x = g.x.toFixed(1),
+      y = g.y.toFixed(1);
+    const t = g.nums.join("·");
+    const r = 11.5 + (t.length - 1) * 2.2;
+    s += `<circle cx="${x}" cy="${y}" r="${(r + 1.6).toFixed(1)}" fill="#FFFFFF"/>
+      <circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="${g.unpaid ? "#B4552E" : "#274A57"}"/>
+      <text x="${x}" y="${(+y + 4.5).toFixed(1)}" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">${t}</text>`;
+  });
+  // titolo
+  const totKm = legs.reduce((t, l) => t + l.km, 0);
+  const first = seq.length ? seq[0] : null;
+  s += `<g transform="translate(18,26)">
+    <text font-size="27" font-family="Fraunces,Georgia,serif" fill="#274A57">Islanda</text>
+    <text y="21" font-size="13.5" fill="#5A7C86">${esc(opts.subtitle || "")}</text>
+  </g>`;
+  // legenda
+  const ly = 560;
+  s += `<g transform="translate(700,${ly})">
+    <rect x="0" y="0" width="286" height="140" rx="12" fill="#FFFFFF" opacity=".93" stroke="#D3D8D9"/>
+    <text x="14" y="24" font-size="12" fill="#6E7C80" letter-spacing="1">LEGENDA</text>
+    <line x1="14" y1="44" x2="52" y2="44" stroke="#B4552E" stroke-width="4.5" stroke-linecap="round"/>
+    <text x="62" y="48" font-size="13" fill="#1E2A2E">Il vostro percorso · ${num(Math.round(totKm))} km</text>
+    <line x1="14" y1="68" x2="52" y2="68" stroke="#8CA1A7" stroke-width="2.6" stroke-dasharray="7 6"/>
+    <text x="62" y="72" font-size="13" fill="#1E2A2E">Hringvegur (strada 1)</text>
+    <circle cx="24" cy="92" r="9" fill="#274A57"/><text x="24" y="96" font-size="11" font-weight="700" fill="#FFF" text-anchor="middle">n</text>
+    <text x="62" y="96" font-size="13" fill="#1E2A2E">Tappa / alloggio</text>
+    <circle cx="24" cy="116" r="9" fill="#B4552E"/>
+    <text x="62" y="120" font-size="13" fill="#1E2A2E">Alloggio ancora da pagare</text>
+  </g>`;
+  // scala
+  const barKm = 100,
+    barPx = kmPx(barKm, 64.5);
+  s += `<g transform="translate(700,${ly + 152})">
+    <line x1="0" y1="0" x2="${barPx.toFixed(1)}" y2="0" stroke="#5A7C86" stroke-width="2.5"/>
+    <line x1="0" y1="-5" x2="0" y2="5" stroke="#5A7C86" stroke-width="2.5"/>
+    <line x1="${barPx.toFixed(1)}" y1="-5" x2="${barPx.toFixed(1)}" y2="5" stroke="#5A7C86" stroke-width="2.5"/>
+    <text x="${(barPx / 2).toFixed(1)}" y="-9" font-size="12" fill="#5A7C86" text-anchor="middle">100 km</text>
+  </g>`;
+  s += `</svg>`;
+  return {
+    svg: s,
+    seq,
+    legs,
+    totKm
+  };
+}
+/* ---------------- TAB MAPPA ---------------- */
+function Mappa({
+  data,
+  commit
+}) {
+  const [zoom, setZoom] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
+  const first = stays.length ? stays[0].checkIn : "";
+  const last = stays.length ? stays[stays.length - 1].checkOut : "";
+  const tl = tripLegs(data);
+  const missing = tl.missing;
+  const {
+    svg,
+    legs,
+    totKm
+  } = buildMapSVG(data, {
+    subtitle: (first ? fmtRange(first, last) + " · " : "") + tl.seq.length + " tappe"
+  });
+  async function findMissing() {
+    setBusy(true);
+    setMsg("Cerco le coordinate…");
+    const ns = {
+      ...data.stays
+    };
+    let n = 0;
+    try {
+      for (const s of stays) {
+        if (s.lat != null || lookupPlace(s.place, s.name)) continue;
+        const g = await geocode(s.place || s.name);
+        if (g) {
+          ns[s.id] = {
+            ...ns[s.id],
+            lat: g.lat,
+            lon: g.lon
+          };
+          n++;
+        }
+        await sleep(1100);
+      }
+      commit({
+        ...data,
+        stays: ns
+      });
+      setMsg(n ? n + " posizioni trovate ✓" : "Nessuna posizione trovata");
+    } catch (e) {
+      setMsg("Servizio non raggiungibile — riprova più tardi.");
+    }
+    setBusy(false);
+    setTimeout(() => setMsg(""), 3500);
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "py-5 fade"
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    title: "Mappa",
+    note: legs.length ? num(Math.round(totKm)) + " km" : ""
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 mb-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setZoom(z => Math.max(1, +(z - 0.5).toFixed(1))),
+    className: "w-10 h-9 rounded-xl border border-hair bg-card text-slate text-[17px] leading-none"
+  }, "−"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setZoom(z => Math.min(4, +(z + 0.5).toFixed(1))),
+    className: "w-10 h-9 rounded-xl border border-hair bg-card text-slate text-[17px] leading-none"
+  }, "+"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[11px] text-mute"
+  }, "zoom ", zoom, "× · ", zoom === 1 ? "isola intera" : "scorri per esplorare")), /*#__PURE__*/React.createElement("div", {
+    className: "bg-card border border-hair rounded-2xl overflow-auto",
+    style: {
+      WebkitOverflowScrolling: "touch"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 100 * zoom + "%",
+      maxWidth: "none"
+    },
+    dangerouslySetInnerHTML: {
+      __html: svg
+    }
+  })), missing.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 bg-card border border-copper/30 rounded-2xl p-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[12px] text-copper mb-2"
+  }, "Non riesco a collocare: ", missing.join(", ")), /*#__PURE__*/React.createElement("button", {
+    onClick: findMissing,
+    disabled: busy,
+    className: "w-full rounded-xl border border-hair bg-cardsoft py-2 text-[12px] text-slate disabled:opacity-50"
+  }, busy ? "Ricerca…" : "Cerca le coordinate online")), msg && /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 text-[12px] text-slate"
+  }, msg), legs.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[12px] text-mute uppercase tracking-wide mb-2"
+  }, "Spostamenti"), legs.map((l, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex items-baseline justify-between bg-card border border-hair rounded-xl px-3 py-2 mb-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-[13px] text-ink"
+  }, l.from.label, " → ", l.to.label), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[13px] text-slate whitespace-nowrap"
+  }, l.real ? "" : "≈ ", num(Math.round(l.km)), " km", /*#__PURE__*/React.createElement("span", {
+    className: "block text-[10px] text-mute text-right"
+  }, fmtMin(Math.round(l.km / 72 * 60))))), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between px-3 pt-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-[12px] text-mute"
+  }, "Totale"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[13px] text-ink"
+  }, num(Math.round(totKm)), " km · ", fmtMin(Math.round(totKm / 72 * 60)))))), /*#__PURE__*/React.createElement("p", {
+    className: "text-[11px] text-mute mt-3 leading-relaxed"
+  }, "Le distanze seguono la strada 1 e sono stime; quelle calcolate nell'Itinerario hanno la precedenza. Contorni: Natural Earth."), /*#__PURE__*/React.createElement(PdfButton, null));
+}
+
+/* ---------------- Export PDF (stampa del report) ---------------- */
+function PdfButton() {
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      const t = document.title;
+      document.title = "Islanda — spese e saldo";
+      window.print();
+      setTimeout(() => {
+        document.title = t;
+      }, 1000);
+    },
+    className: "w-full mt-4 rounded-xl border border-hair bg-card text-slate py-2.5 text-[13px] font-medium active:scale-[.99] transition"
+  }, "Esporta PDF (spese e saldo)");
+}
+const esc = v => String(v == null ? "" : v).replace(/[&<>"]/g, c => ({
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;"
+})[c]);
+const dIt = d => d ? new Date(d).toLocaleDateString("it-IT", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric"
+}) : "—";
+function cell(base) {
+  const e = eurApprox(base);
+  return money(base) + (e ? '<span class="eur">' + e + "</span>" : "");
+}
+function buildReport(data, A, B) {
+  const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
+  const exps = toArr(data.expenses).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const who = p => p === "A" ? esc(A) : p === "B" ? esc(B) : '<span class="due">da pagare</span>';
+  let paidA = 0,
+    paidB = 0,
+    shareA = 0,
+    shareB = 0,
+    daPagare = 0;
+  const byCat = {};
+  const add = (amount, paidBy, splitA, cat) => {
+    const a = Number(amount) || 0;
+    if (!a) return;
+    if (paidBy === "none") {
+      daPagare += a;
+      return;
+    }
+    const sA = (splitA == null ? 50 : splitA) / 100;
+    if (paidBy === "B") paidB += a;else paidA += a;
+    shareA += a * sA;
+    shareB += a * (1 - sA);
+    byCat[cat] = (byCat[cat] || 0) + a;
+  };
+  exps.forEach(e => add(toBase(e.amount, e.curr), e.paidBy, e.splitA, e.category || "Altro"));
+  stays.forEach(s => add(toBase(s.cost, s.curr), s.paidBy, s.splitA, "Alloggio"));
+  const total = paidA + paidB;
+  const netA = paidA - shareA;
+  const owe = Math.abs(netA);
+  const conguaglio = owe < 0.01 ? "Conti in pari" : (netA > 0 ? esc(B) + " deve a " + esc(A) : esc(A) + " deve a " + esc(B));
+  const first = stays.length ? stays[0].checkIn : "";
+  const last = stays.length ? stays[stays.length - 1].checkOut : "";
+  const nights = stays.reduce((t, s) => t + nightsBetween(s.checkIn, s.checkOut), 0);
+  const staysRows = stays.map(s => {
+    const base = toBase(s.cost, s.curr);
+    return `<tr><td>${esc(s.name) || "—"}</td><td>${esc(s.place)}</td><td>${dIt(s.checkIn)} → ${dIt(s.checkOut)}</td><td class="n">${nightsBetween(s.checkIn, s.checkOut)}</td><td class="n">${cell(base)}</td><td>${who(s.paidBy)}</td></tr>`;
+  }).join("");
+  const staysTot = stays.reduce((t, s) => t + toBase(s.cost, s.curr), 0);
+  const expRows = exps.map(e => {
+    const base = toBase(e.amount, e.curr);
+    return `<tr><td class="n">${dIt(e.date)}</td><td>${esc(e.description) || "—"}</td><td>${esc(e.category)}</td><td class="n">${cell(base)}</td><td>${who(e.paidBy)}</td></tr>`;
+  }).join("");
+  const expTot = exps.reduce((t, e) => t + toBase(e.amount, e.curr), 0);
+  const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td class="n">${cell(v)}</td><td class="n">${(v / total * 100).toFixed(0)}%</td></tr>`).join("");
+  const person = (name, paid, share) => {
+    const net = paid - share;
+    return `<div class="box"><div style="font-weight:600;margin-bottom:4px">${esc(name)}</div>
+      <table><tr><td>Anticipato</td><td class="n">${cell(paid)}</td></tr>
+      <tr><td>Quota dovuta</td><td class="n">${cell(share)}</td></tr>
+      <tr class="tot"><td>${net >= 0 ? "A credito" : "A debito"}</td><td class="n">${cell(Math.abs(net))}</td></tr></table></div>`;
+  };
+  const map = buildMapSVG(data, {
+    subtitle: (first ? fmtRange(first, last) + " · " : "") + nights + " notti"
+  });
+  return `
+    <h1>Islanda — spese e saldo</h1>
+    <div class="sub">${first ? fmtRange(first, last) + " · " + nights + " notti · " : ""}${esc(A)} &amp; ${esc(B)} · report del ${dIt(new Date().toISOString().slice(0, 10))}</div>
+
+    ${map.legs.length ? `<div style="border:1px solid #D3D8D9;border-radius:8px;overflow:hidden;margin-bottom:4px">${map.svg}</div>` : ""}
+
+    ${(() => {
+    try {
+      const m = buildMapSVG(data, {
+        subtitle: (first ? fmtRange(first, last) + " · " : "") + nights + " notti"
+      });
+      return `<div class="mapwrap">${m.svg}<div class="foot" style="margin-top:4px">Percorso lungo la strada 1, distanze stimate. Contorni: Natural Earth.</div></div>`;
+    } catch (e) {
+      return "";
+    }
+  })()}
+
+    <h2>Saldo</h2>
+    <div class="box"><div style="font-size:10px;color:#6E7C80;text-transform:uppercase;letter-spacing:.04em">Conguaglio finale</div>
+      <div style="margin-top:2px">${conguaglio}</div>
+      <div class="big">${owe < 0.01 ? "" : cell(owe)}</div></div>
+    <div class="cols">${person(A, paidA, shareA)}${person(B, paidB, shareB)}</div>
+    <div class="box"><table>
+      <tr><td>Totale già pagato</td><td class="n">${cell(total)}</td></tr>
+      ${daPagare > 0 ? `<tr><td class="due">Ancora da pagare</td><td class="n due">${cell(daPagare)}</td></tr>
+      <tr><td>Quota da pagare a testa</td><td class="n">${cell(daPagare / 2)}</td></tr>` : ""}
+      <tr class="tot"><td>Costo totale viaggio</td><td class="n">${cell(total + daPagare)}</td></tr>
+    </table></div>
+
+    ${stays.length ? `<h2>Alloggi</h2><table>
+      <tr><th>Struttura</th><th>Località</th><th>Periodo</th><th class="n">Notti</th><th class="n">Costo</th><th>Pagato da</th></tr>
+      ${staysRows}
+      <tr class="tot"><td colspan="3">Totale alloggi</td><td class="n">${nights}</td><td class="n">${cell(staysTot)}</td><td></td></tr>
+    </table>` : ""}
+
+    ${exps.length ? `<h2>Spese</h2><table>
+      <tr><th class="n">Data</th><th>Descrizione</th><th>Categoria</th><th class="n">Importo</th><th>Pagato da</th></tr>
+      ${expRows}
+      <tr class="tot"><td colspan="3">Totale spese</td><td class="n">${cell(expTot)}</td><td></td></tr>
+    </table>` : ""}
+
+    ${catRows ? `<h2>Per categoria</h2><table>
+      <tr><th>Categoria</th><th class="n">Importo</th><th class="n">%</th></tr>${catRows}</table>` : ""}
+
+    <div class="foot">${curCode === "ISK" ? "Importi in corone islandesi, equivalente in euro calcolato a " + num(curRate) + " kr per 1 €. " : ""}Le quote sono calcolate secondo la divisione impostata per ogni voce.</div>
+  `;
+}
+function Report({
+  data,
+  A,
+  B
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    id: "report",
+    dangerouslySetInnerHTML: {
+      __html: buildReport(data, A, B)
+    }
+  });
 }
 ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));
 </script>
