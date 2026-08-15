@@ -229,6 +229,18 @@ const DEFAULT_CATS = ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività"
    Importi in EUR, indipendenti dalla valuta base impostata.
    ============================================================ */
 const SEED_ID = "xls-2026-08-v1";
+const STOPS_ID = "pdf-itinerario-v1";
+const SEED_STOPS = {
+  it_d1: { name: "Reykjavík", place: "Reykjavík", arrive: "2026-08-19", nights: 1, lat: 64.1466, lon: -21.9426, order: 0, notes: "Arrivo · Hallgrímskirkja · Skólavörðustígur · Laugavegur · Tjörnin e Höfði · Harpa e porto — pernotto City Hub Reykjavík" },
+  it_d2: { name: "Golden Circle", place: "Geysir", arrive: "2026-08-20", nights: 1, lat: 64.310, lon: -20.301, order: 1, notes: "Þingvellir · Geysir/Strokkur · Gullfoss · Kerið (se ci va) — pernotto Country Cottage, Hvolsvöllur" },
+  it_d3: { name: "Cascate del sud", place: "Seljalandsfoss", arrive: "2026-08-21", nights: 1, lat: 63.616, lon: -19.993, order: 2, notes: "Seljalandsfoss · Gljúfrabúi · Skógafoss · Kvernufoss — pernotto Country Cottage, Hvolsvöllur" },
+  it_d4: { name: "Vík e dintorni", place: "Vík", arrive: "2026-08-22", nights: 1, lat: 63.418, lon: -19.006, order: 3, notes: "Sólheimasandur · Dyrhólaey · Reynisfjara · Reynisdrangar — pernotto Farmhouse Lodge, Vík" },
+  it_d5: { name: "Hjörleifshöfði e Þakgil", place: "Þakgil", arrive: "2026-08-23", nights: 1, lat: 63.498, lon: -18.766, order: 4, notes: "Hjörleifshöfði · Þakgil · terza tappa da decidere — pernotto Farmhouse Lodge, Vík" },
+  it_d6: { name: "Skaftafell", place: "Skaftafell", arrive: "2026-08-24", nights: 1, lat: 64.016, lon: -16.966, order: 5, notes: "Fjaðrárgljúfur · Skaftafell · Svartifoss — pernotto Fosshotel Vatnajökull, Höfn" },
+  it_d7: { name: "Lagune glaciali", place: "Jökulsárlón", arrive: "2026-08-25", nights: 1, lat: 64.048, lon: -16.179, order: 6, notes: "Fjallsárlón · Jökulsárlón · Diamond Beach · Vestrahorn/Stokksnes — pernotto Fosshotel Vatnajökull, Höfn" },
+  it_d8: { name: "Rientro a Reykjavík", place: "Reykjavík", arrive: "2026-08-26", nights: 1, lat: 64.1466, lon: -21.9426, order: 7, notes: "Chill · piscina — pernotto City Hub Reykjavík" },
+  it_d9: { name: "Volo per Malpensa", place: "Keflavík", arrive: "2026-08-27", nights: 0, lat: 63.985, lon: -22.605, order: 8, notes: "Chill · shopping · giretti · volo di rientro" }
+};
 const SEED = {
   stays: {
     xls_st_1: { name: "CityHub Reykjavík", place: "Reykjavík", checkIn: "2026-08-19", checkOut: "2026-08-20", cost: 165.25, curr: "EUR", paidBy: "none", splitA: 50, url: "" },
@@ -245,6 +257,16 @@ const SEED = {
   },
   categories: ["Alloggio", "Volo", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Assicurazione", "Altro"]
 };
+function applyStopsSeed(d) {
+  return {
+    ...d,
+    stops: {
+      ...(d.stops || {}),
+      ...SEED_STOPS
+    },
+    stopsSeeded: STOPS_ID
+  };
+}
 function applySeed(d) {
   const cats = Array.isArray(d.categories) && d.categories.length ? d.categories.slice() : DEFAULT_CATS.slice();
   SEED.categories.forEach(c => {
@@ -325,7 +347,12 @@ function App() {
   useEffect(() => {
     if (data === null || seedRef.current) return;
     seedRef.current = true;
-    if (data.seeded !== SEED_ID) commit(applySeed(data));
+    if (data.seeded !== SEED_ID || data.stopsSeeded !== STOPS_ID) {
+      let next = data;
+      if (next.seeded !== SEED_ID) next = applySeed(next);
+      if (next.stopsSeeded !== STOPS_ID) next = applyStopsSeed(next);
+      commit(next);
+    }
   }, [data]);
   const patch = part => commit({
     ...data,
@@ -592,7 +619,7 @@ function Itinerario({
     setBusy(false);
     setTimeout(() => setMsg(""), 3500);
   }
-  const totKm = stops.reduce((t, s) => t + (s.kmManual ?? s.kmAuto ?? 0), 0);
+  const totKm = stops.reduce((t, s, i) => t + (i > 0 ? km(s) || 0 : 0), 0);
   const totNights = stops.reduce((t, s) => t + (Number(s.nights) || 0), 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
@@ -622,7 +649,7 @@ function Itinerario({
     className: "relative spine pl-9 pb-1"
   }, i > 0 && /*#__PURE__*/React.createElement("div", {
     className: "absolute left-0 -top-3 pl-9 text-[11px] font-mono text-copper"
-  }, km(st) != null ? `↓ ${num(km(st))} km${st.minAuto ? " · " + fmtMin(st.minAuto) : ""}` : "↓ —"), /*#__PURE__*/React.createElement("span", {
+  }, km(st) != null ? `↓ ${isEst(st) ? "≈ " : ""}${num(km(st))} km${st.minAuto ? " · " + fmtMin(st.minAuto) : ""}` : "↓ —"), /*#__PURE__*/React.createElement("span", {
     className: "node absolute left-[4px] top-1.5 w-3.5 h-3.5 rounded-full bg-moss"
   }), /*#__PURE__*/React.createElement(StopCard, {
     st: st,
@@ -641,8 +668,21 @@ function Itinerario({
     value: `${totNights}`
   })));
   function km(st) {
-    return st.kmManual ?? st.kmAuto ?? null;
+    const v = st.kmManual ?? st.kmAuto;
+    if (v != null) return v;
+    const i = stops.findIndex(s => s.id === st.id);
+    if (i < 1) return null;
+    const a = coordOfStop(stops[i - 1]),
+      b = coordOfStop(st);
+    if (!a || !b) return null;
+    return Math.round(pathKm(ringPath(a, b)) / 5) * 5;
   }
+  function isEst(st) {
+    return (st.kmManual ?? st.kmAuto) == null;
+  }
+}
+function coordOfStop(st) {
+  return st.lat != null && st.lon != null ? [st.lat, st.lon] : lookupPlace(st.place, st.name);
 }
 function fmtMin(m) {
   const h = Math.floor(m / 60),
@@ -1488,7 +1528,7 @@ function Riepilogo({
   const netA = paidA - shareA;
   const owe = Math.abs(Math.round(netA * 100) / 100);
   const stops = toArr(data.stops);
-  const totKm = stops.reduce((t, s) => t + (s.kmManual ?? s.kmAuto ?? 0), 0);
+  const totKm = tripLegs(data).legs.reduce((t, l) => t + (l.km || 0), 0);
   const totNights = stops.reduce((t, s) => t + (Number(s.nights) || 0), 0);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
@@ -2278,7 +2318,11 @@ const PLACES = {
 "budir":[64.821,-23.386],"snaefellsjokull":[64.808,-23.777],"isafjordur":[66.075,-23.135],
 "patreksfjordur":[65.594,-23.999],"dynjandi":[65.733,-23.203],"holmavik":[65.706,-21.688],
 "hvitserkur":[65.606,-20.638],"krysuvik":[63.892,-22.055],"eyrarbakki":[63.865,-21.152],
-"vatnajokull":[64.416,-16.800],"hofn i hornafirdi":[64.253,-15.208]
+"vatnajokull":[64.416,-16.800],"hofn i hornafirdi":[64.253,-15.208],
+"kerid":[64.041,-20.885],"gljufrabui":[63.621,-19.990],"kvernufoss":[63.530,-19.487],
+"solheimasandur":[63.459,-19.364],"solheimajokull":[63.532,-19.370],
+"hjorleifshofdi":[63.415,-18.765],"thakgil":[63.498,-18.766],"fjallsarlon":[63.988,-16.380],
+"reynisdrangar":[63.401,-19.043],"hallgrimskirkja":[64.142,-21.927],"harpa":[64.150,-21.933]
 };
 // città di riferimento sempre disegnate (per orientarsi)
 const REF = [["Reykjavík", 64.1466, -21.9426], ["Keflavík", 63.985, -22.605], ["Borgarnes", 64.538, -21.921], ["Ísafjörður", 66.075, -23.135], ["Akureyri", 65.688, -18.090], ["Húsavík", 66.045, -17.338], ["Mývatn", 65.600, -16.990], ["Egilsstaðir", 65.264, -14.395], ["Höfn", 64.253, -15.208], ["Vík", 63.418, -19.006], ["Selfoss", 63.933, -20.997], ["Blönduós", 65.660, -20.283], ["Kirkjubæjarklaustur", 63.791, -18.058], ["Jökulsárlón", 64.048, -16.179], ["Stykkishólmur", 65.075, -22.727]];
@@ -2460,9 +2504,9 @@ function buildMapSVG(data, opts) {
   // titolo
   {
     x: 694,
-    y: 554,
+    y: 530,
     w: 298,
-    h: 172
+    h: 196
   } // legenda + scala
   ];
   const fits = b => !boxes.some(o => !(b.x + b.w < o.x || o.x + o.w < b.x || b.y + b.h < o.y || o.y + o.h < b.y)) && b.x > 2 && b.x + b.w < MAPW - 2 && b.y > 2 && b.y + b.h < 700;
@@ -2473,7 +2517,7 @@ function buildMapSVG(data, opts) {
     g.y = y;
     g.t1 = g.nums.join("·") + ". " + g.label;
     g.t2 = g.subs.join(" · ");
-    const w = Math.max(g.t1.length * 7.1, g.t2.length * 6.2) + 14;
+    const w = Math.max(g.t1.length * 7.6, g.t2.length * 6.6) + 16;
     const h = g.t2 ? 34 : 22;
     const cands = [[16, -h / 2], [-w - 16, -h / 2], [12, 12], [-w - 12, 12], [12, -h - 14], [-w - 12, -h - 14], [-w / 2, -h - 18], [-w / 2, 18]];
     let box = null;
@@ -2489,17 +2533,92 @@ function buildMapSVG(data, opts) {
         break;
       }
     }
+    if (!box) {
+      for (const r of [34, 48, 64, 84, 108, 140, 180]) {
+        for (const a of [0, 45, 315, 90, 270, 135, 225, 180]) {
+          const rad = a * Math.PI / 180;
+          const cx = x + Math.cos(rad) * r,
+            cy = y + Math.sin(rad) * r;
+          const b = {
+            x: Math.cos(rad) < -0.2 ? cx - w : cx,
+            y: cy - h / 2,
+            w,
+            h
+          };
+          if (fits(b)) {
+            box = b;
+            break;
+          }
+        }
+        if (box) break;
+      }
+    }
     if (!box) box = {
-      x: x + 16,
-      y: y - h / 2,
+      x: Math.min(Math.max(4, x + 16), MAPW - w - 4),
+      y: Math.min(Math.max(4, y - h / 2), 700 - h),
       w,
       h
     };
     boxes.push(box);
     g.box = box;
   });
+  // alloggi che non coincidono con una tappa dell'itinerario
+  let stayLayer = "";
+  const stayPts = [];
+  if (seq.length && seq[0].kind === "stop") {
+    toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || "")).forEach(st => {
+      const c = st.lat != null && st.lon != null ? [st.lat, st.lon] : lookupPlace(st.place, st.name);
+      if (!c) return;
+      if (groups.some(g => Math.abs(g.lat - c[0]) < 0.06 && Math.abs(g.lon - c[1]) < 0.06)) return;
+      const ex = stayPts.find(p => Math.abs(p.lat - c[0]) < 0.06 && Math.abs(p.lon - c[1]) < 0.06);
+      if (ex) {
+        ex.unpaid = ex.unpaid || st.paidBy === "none";
+        return;
+      }
+      stayPts.push({
+        lat: c[0],
+        lon: c[1],
+        label: st.place || st.name || "Alloggio",
+        unpaid: st.paidBy === "none"
+      });
+    });
+    stayPts.forEach(p => {
+      const x = mLon(p.lon),
+        y = mLat(p.lat);
+      const col = p.unpaid ? "#B4552E" : "#274A57";
+      const w = p.label.length * 7.4 + 10;
+      let box = null;
+      for (const c of [[13, -9], [-w - 13, -9], [-w / 2, 13], [-w / 2, -31]]) {
+        const b = {
+          x: x + c[0],
+          y: y + c[1],
+          w,
+          h: 18
+        };
+        if (fits(b)) {
+          box = b;
+          break;
+        }
+      }
+      if (box) boxes.push(box);
+      boxes.push({
+        x: x - 10,
+        y: y - 10,
+        w: 20,
+        h: 20
+      });
+      stayLayer += `<rect x="${(x - 9).toFixed(1)}" y="${(y - 9).toFixed(1)}" width="18" height="18" rx="5" fill="#FFFFFF" stroke="${col}" stroke-width="2.2"/>
+      <path d="M-4.4,1 L0,-3.6 L4.4,1 L4.4,4.4 L-4.4,4.4 Z" fill="${col}" transform="translate(${x.toFixed(1)},${y.toFixed(1)})"/>`;
+      if (box) {
+        const tx = (box.x + 2).toFixed(1),
+          ty = (box.y + 13).toFixed(1);
+        stayLayer += `<text x="${tx}" y="${ty}" font-size="12.5" font-weight="600" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="4.5" stroke-linejoin="round">${esc(p.label)}</text>`;
+        stayLayer += `<text x="${tx}" y="${ty}" font-size="12.5" font-weight="600" fill="${col}">${esc(p.label)}</text>`;
+      }
+    });
+  }
   // città di riferimento (saltate se finirebbero sotto un'etichetta)
-  const onRoute = groups.map(p => normPlace(p.label));
+  const onRoute = groups.map(p => normPlace(p.label)).concat(stayPts.map(p => normPlace(p.label)));
   REF.forEach(([n, la, lo]) => {
     if (onRoute.some(r => r && (normPlace(n).indexOf(r) >= 0 || r.indexOf(normPlace(n)) >= 0))) return;
     const x = mLon(lo),
@@ -2585,6 +2704,7 @@ function buildMapSVG(data, opts) {
       <circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="${g.unpaid ? "#B4552E" : "#274A57"}"/>
       <text x="${x}" y="${(+y + 4.5).toFixed(1)}" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">${t}</text>`;
   });
+  s += stayLayer;
   // titolo
   const totKm = legs.reduce((t, l) => t + l.km, 0);
   const first = seq.length ? seq[0] : null;
@@ -2593,23 +2713,26 @@ function buildMapSVG(data, opts) {
     <text y="21" font-size="13.5" fill="#5A7C86">${esc(opts.subtitle || "")}</text>
   </g>`;
   // legenda
-  const ly = 560;
+  const ly = 536;
   s += `<g transform="translate(700,${ly})">
-    <rect x="0" y="0" width="286" height="140" rx="12" fill="#FFFFFF" opacity=".93" stroke="#D3D8D9"/>
+    <rect x="0" y="0" width="286" height="164" rx="12" fill="#FFFFFF" opacity=".93" stroke="#D3D8D9"/>
     <text x="14" y="24" font-size="12" fill="#6E7C80" letter-spacing="1">LEGENDA</text>
     <line x1="14" y1="44" x2="52" y2="44" stroke="#B4552E" stroke-width="4.5" stroke-linecap="round"/>
     <text x="62" y="48" font-size="13" fill="#1E2A2E">Il vostro percorso · ${num(Math.round(totKm))} km</text>
     <line x1="14" y1="68" x2="52" y2="68" stroke="#8CA1A7" stroke-width="2.6" stroke-dasharray="7 6"/>
     <text x="62" y="72" font-size="13" fill="#1E2A2E">Hringvegur (strada 1)</text>
     <circle cx="24" cy="92" r="9" fill="#274A57"/><text x="24" y="96" font-size="11" font-weight="700" fill="#FFF" text-anchor="middle">n</text>
-    <text x="62" y="96" font-size="13" fill="#1E2A2E">Tappa / alloggio</text>
-    <circle cx="24" cy="116" r="9" fill="#B4552E"/>
-    <text x="62" y="120" font-size="13" fill="#1E2A2E">Alloggio ancora da pagare</text>
+    <text x="62" y="96" font-size="13" fill="#1E2A2E">Tappa dell'itinerario</text>
+    <rect x="15" y="107" width="18" height="18" rx="5" fill="#FFFFFF" stroke="#274A57" stroke-width="2.2"/>
+    <path d="M-4.4,1 L0,-3.6 L4.4,1 L4.4,4.4 L-4.4,4.4 Z" fill="#274A57" transform="translate(24,116)"/>
+    <text x="62" y="120" font-size="13" fill="#1E2A2E">Alloggio</text>
+    <circle cx="24" cy="140" r="9" fill="#B4552E"/>
+    <text x="62" y="144" font-size="13" fill="#1E2A2E">Ancora da pagare</text>
   </g>`;
   // scala
   const barKm = 100,
     barPx = kmPx(barKm, 64.5);
-  s += `<g transform="translate(700,${ly + 152})">
+  s += `<g transform="translate(700,${ly + 176})">
     <line x1="0" y1="0" x2="${barPx.toFixed(1)}" y2="0" stroke="#5A7C86" stroke-width="2.5"/>
     <line x1="0" y1="-5" x2="0" y2="5" stroke="#5A7C86" stroke-width="2.5"/>
     <line x1="${barPx.toFixed(1)}" y1="-5" x2="${barPx.toFixed(1)}" y2="5" stroke="#5A7C86" stroke-width="2.5"/>
