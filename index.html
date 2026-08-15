@@ -134,6 +134,7 @@ const EMPTY = {
   stays: {},
   expenses: {},
   gear: {},
+  days: {},
   categories: ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Altro"]
 };
 function loadLocal() {
@@ -229,18 +230,75 @@ const DEFAULT_CATS = ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività"
    Importi in EUR, indipendenti dalla valuta base impostata.
    ============================================================ */
 const SEED_ID = "xls-2026-08-v1";
-const STOPS_ID = "pdf-itinerario-v1";
-const SEED_STOPS = {
-  it_d1: { name: "Reykjavík", place: "Reykjavík", arrive: "2026-08-19", nights: 1, lat: 64.1466, lon: -21.9426, order: 0, notes: "Arrivo · Hallgrímskirkja · Skólavörðustígur · Laugavegur · Tjörnin e Höfði · Harpa e porto — pernotto City Hub Reykjavík" },
-  it_d2: { name: "Golden Circle", place: "Geysir", arrive: "2026-08-20", nights: 1, lat: 64.310, lon: -20.301, order: 1, notes: "Þingvellir · Geysir/Strokkur · Gullfoss · Kerið (se ci va) — pernotto Country Cottage, Hvolsvöllur" },
-  it_d3: { name: "Cascate del sud", place: "Seljalandsfoss", arrive: "2026-08-21", nights: 1, lat: 63.616, lon: -19.993, order: 2, notes: "Seljalandsfoss · Gljúfrabúi · Skógafoss · Kvernufoss — pernotto Country Cottage, Hvolsvöllur" },
-  it_d4: { name: "Vík e dintorni", place: "Vík", arrive: "2026-08-22", nights: 1, lat: 63.418, lon: -19.006, order: 3, notes: "Sólheimasandur · Dyrhólaey · Reynisfjara · Reynisdrangar — pernotto Farmhouse Lodge, Vík" },
-  it_d5: { name: "Hjörleifshöfði e Þakgil", place: "Þakgil", arrive: "2026-08-23", nights: 1, lat: 63.498, lon: -18.766, order: 4, notes: "Hjörleifshöfði · Þakgil · terza tappa da decidere — pernotto Farmhouse Lodge, Vík" },
-  it_d6: { name: "Skaftafell", place: "Skaftafell", arrive: "2026-08-24", nights: 1, lat: 64.016, lon: -16.966, order: 5, notes: "Fjaðrárgljúfur · Skaftafell · Svartifoss — pernotto Fosshotel Vatnajökull, Höfn" },
-  it_d7: { name: "Lagune glaciali", place: "Jökulsárlón", arrive: "2026-08-25", nights: 1, lat: 64.048, lon: -16.179, order: 6, notes: "Fjallsárlón · Jökulsárlón · Diamond Beach · Vestrahorn/Stokksnes — pernotto Fosshotel Vatnajökull, Höfn" },
-  it_d8: { name: "Rientro a Reykjavík", place: "Reykjavík", arrive: "2026-08-26", nights: 1, lat: 64.1466, lon: -21.9426, order: 7, notes: "Chill · piscina — pernotto City Hub Reykjavík" },
-  it_d9: { name: "Volo per Malpensa", place: "Keflavík", arrive: "2026-08-27", nights: 0, lat: 63.985, lon: -22.605, order: 8, notes: "Chill · shopping · giretti · volo di rientro" }
+const STOPS_ID = "pdf-itinerario-v2";
+const SEED_DAYS = {
+  "2026-08-19": { title: "Arrivo a Reykjavík" },
+  "2026-08-20": { title: "Golden Circle" },
+  "2026-08-21": { title: "Cascate del sud" },
+  "2026-08-22": { title: "Vík e dintorni" },
+  "2026-08-23": { title: "Hjörleifshöfði e Þakgil" },
+  "2026-08-24": { title: "Skaftafell" },
+  "2026-08-25": { title: "Lagune glaciali" },
+  "2026-08-26": { title: "Relax a Reykjavík" },
+  "2026-08-27": { title: "Rientro" }
 };
+const SEED_POIS = [
+  ["2026-08-19", "Arrivo a Keflavík", 63.985, -22.605, "atterraggio e ritiro auto"],
+  ["2026-08-19", "Hallgrímskirkja", 64.1417, -21.9266, ""],
+  ["2026-08-19", "Skólavörðustígur", 64.1440, -21.9290, ""],
+  ["2026-08-19", "Laugavegur", 64.1455, -21.9300, ""],
+  ["2026-08-19", "Tjörnin + Höfði", 64.1440, -21.9420, ""],
+  ["2026-08-19", "Harpa + porto", 64.1505, -21.9325, ""],
+  ["2026-08-20", "Þingvellir", 64.2559, -21.1300, ""],
+  ["2026-08-20", "Geysir / Strokkur", 64.3104, -20.3024, ""],
+  ["2026-08-20", "Gullfoss", 64.3271, -20.1199, ""],
+  ["2026-08-20", "Kerið", 64.0411, -20.8850, "se ci va"],
+  ["2026-08-21", "Seljalandsfoss", 63.6156, -19.9886, ""],
+  ["2026-08-21", "Gljúfrabúi", 63.6207, -19.9895, ""],
+  ["2026-08-21", "Skógafoss", 63.5321, -19.5114, ""],
+  ["2026-08-21", "Kvernufoss", 63.5300, -19.4870, ""],
+  ["2026-08-22", "Sólheimasandur", 63.4591, -19.3644, "relitto del DC-3"],
+  ["2026-08-22", "Dyrhólaey", 63.4020, -19.1276, ""],
+  ["2026-08-22", "Reynisfjara", 63.4030, -19.0448, ""],
+  ["2026-08-22", "Reynisdrangar", 63.4010, -19.0430, ""],
+  ["2026-08-23", "Hjörleifshöfði", 63.4148, -18.7654, ""],
+  ["2026-08-23", "Þakgil", 63.4980, -18.7660, ""],
+  ["2026-08-23", "Terza tappa da decidere", null, null, "da scegliere"],
+  ["2026-08-24", "Fjaðrárgljúfur", 63.7713, -18.1720, ""],
+  ["2026-08-24", "Skaftafell", 64.0166, -16.9660, ""],
+  ["2026-08-24", "Svartifoss", 64.0276, -16.9750, ""],
+  ["2026-08-25", "Fjallsárlón", 63.9880, -16.3800, ""],
+  ["2026-08-25", "Jökulsárlón", 64.0784, -16.2306, ""],
+  ["2026-08-25", "Diamond Beach", 64.0430, -16.1780, ""],
+  ["2026-08-25", "Vestrahorn / Stokksnes", 64.2470, -14.9930, ""],
+  ["2026-08-26", "Chill in città", 64.1466, -21.9426, ""],
+  ["2026-08-26", "Piscina", 64.1450, -21.8800, "Laugardalslaug"],
+  ["2026-08-27", "Shopping e giretti", 64.1466, -21.9426, ""],
+  ["2026-08-27", "Volo da Keflavík", 63.985, -22.605, "riconsegna auto"]
+];
+const SEED_STOPS = (() => {
+  const o = {};
+  let n = 0,
+    day = "",
+    ord = 0;
+  SEED_POIS.forEach(([d, name, lat, lon, notes]) => {
+    if (d !== day) {
+      day = d;
+      ord = 0;
+    }
+    o["poi_" + (++n)] = {
+      name,
+      day: d,
+      order: ord++,
+      lat,
+      lon,
+      notes,
+      noGeo: lat == null
+    };
+  });
+  return o;
+})();
+
 const SEED = {
   stays: {
     xls_st_1: { name: "CityHub Reykjavík", place: "Reykjavík", checkIn: "2026-08-19", checkOut: "2026-08-20", cost: 165.25, curr: "EUR", paidBy: "none", splitA: 50, url: "" },
@@ -258,11 +316,19 @@ const SEED = {
   categories: ["Alloggio", "Volo", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Assicurazione", "Altro"]
 };
 function applyStopsSeed(d) {
+  const keep = {};
+  Object.entries(d.stops || {}).forEach(([k, v]) => {
+    if (!/^it_d\d+$/.test(k)) keep[k] = v;
+  });
   return {
     ...d,
     stops: {
-      ...(d.stops || {}),
+      ...keep,
       ...SEED_STOPS
+    },
+    days: {
+      ...(d.days || {}),
+      ...SEED_DAYS
     },
     stopsSeeded: STOPS_ID
   };
@@ -507,27 +573,113 @@ function TabBar({
 }
 
 /* ---------------- ITINERARIO ---------------- */
+const WD = ["Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"];
+const dayLabel = d => {
+  const dt = new Date(d + "T12:00:00");
+  return WD[dt.getDay()] + " " + dt.getDate();
+};
+const addDays = (d, n) => {
+  const dt = new Date(d + "T12:00:00");
+  dt.setDate(dt.getDate() + n);
+  return dt.toISOString().slice(0, 10);
+};
+function coordOfStop(st) {
+  return st.lat != null && st.lon != null ? [st.lat, st.lon] : lookupPlace(st.place, st.name);
+}
+function stayCoord(s) {
+  return s.lat != null && s.lon != null ? [s.lat, s.lon] : lookupPlace(s.place, s.name);
+}
+function lodgingFor(data, day) {
+  return toArr(data.stays).find(s => s.checkIn && s.checkOut && day >= s.checkIn && day < s.checkOut) || null;
+}
+function dayList(data) {
+  const a = toArr(data.stops).map(s => s.day).filter(Boolean);
+  return [...new Set([...a, ...Object.keys(data.days || {})])].sort();
+}
+function stopsOfDay(data, day) {
+  return toArr(data.stops).filter(s => s.day === day).sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+function dayTitle(data, day) {
+  return data.days && data.days[day] && data.days[day].title || "";
+}
+/* punti della giornata: dove hai dormito → tappe → dove dormi */
+function dayPoints(data, day) {
+  const pts = [];
+  const push = (label, coord, kind, extra) => {
+    if (!coord) return;
+    const p = pts[pts.length - 1];
+    if (p && Math.abs(p.lat - coord[0]) < 0.006 && Math.abs(p.lon - coord[1]) < 0.006) return;
+    pts.push({
+      label,
+      lat: coord[0],
+      lon: coord[1],
+      kind,
+      ...(extra || {})
+    });
+  };
+  const before = lodgingFor(data, addDays(day, -1));
+  if (before) push(before.place || before.name, stayCoord(before), "stay", {
+    stay: before,
+    sub: "partenza"
+  });
+  stopsOfDay(data, day).forEach(s => {
+    if (s.noGeo) return;
+    push(s.name || s.place, coordOfStop(s), "stop", {
+      stop: s,
+      sub: s.place && s.place !== s.name ? s.place : "",
+      km: s.kmManual ?? s.kmAuto ?? null
+    });
+  });
+  const night = lodgingFor(data, day);
+  if (night) push(night.place || night.name, stayCoord(night), "stay", {
+    stay: night,
+    sub: "pernotto"
+  });
+  return pts;
+}
+function legsOf(pts) {
+  const legs = [];
+  for (let i = 1; i < pts.length; i++) {
+    const path = ringPath([pts[i - 1].lat, pts[i - 1].lon], [pts[i].lat, pts[i].lon]);
+    const real = pts[i].km != null;
+    const direct = hav([pts[i - 1].lat, pts[i - 1].lon], [pts[i].lat, pts[i].lon]) * 1.35;
+    legs.push({
+      from: pts[i - 1],
+      to: pts[i],
+      pts: path,
+      km: real ? pts[i].km : Math.round(Math.min(pathKm(path), direct) / 5) * 5,
+      real
+    });
+  }
+  return legs;
+}
+function dayKm(data, day) {
+  return legsOf(dayPoints(data, day)).reduce((t, l) => t + l.km, 0);
+}
 function Itinerario({
   data,
   commit
 }) {
-  const stops = toArr(data.stops).sort((a, b) => (a.order || 0) - (b.order || 0));
-  const [adding, setAdding] = useState(false);
+  const days = dayList(data);
+  const [open, setOpen] = useState({});
+  const [addTo, setAddTo] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  function addStop(st) {
-    const order = stops.length ? Math.max(...stops.map(s => s.order || 0)) + 1 : 0;
+  function addStop(day, st) {
+    const arr = stopsOfDay(data, day);
+    const order = arr.length ? Math.max(...arr.map(s => s.order || 0)) + 1 : 0;
     commit({
       ...data,
       stops: {
         ...data.stops,
         [uid()]: {
           ...st,
+          day,
           order
         }
       }
     });
-    setAdding(false);
+    setAddTo(null);
   }
   function updateStop(id, part) {
     commit({
@@ -551,8 +703,8 @@ function Itinerario({
       stops: ns
     });
   }
-  function move(id, dir) {
-    const arr = [...stops];
+  function move(day, id, dir) {
+    const arr = stopsOfDay(data, day);
     const i = arr.findIndex(s => s.id === id);
     const j = i + dir;
     if (j < 0 || j >= arr.length) return;
@@ -561,50 +713,95 @@ function Itinerario({
     };
     ns[arr[i].id] = {
       ...ns[arr[i].id],
-      order: arr[j].order
+      order: arr[j].order ?? j
     };
     ns[arr[j].id] = {
       ...ns[arr[j].id],
-      order: arr[i].order
+      order: arr[i].order ?? i
     };
     commit({
       ...data,
       stops: ns
     });
   }
+  function setTitle(day, title) {
+    commit({
+      ...data,
+      days: {
+        ...(data.days || {}),
+        [day]: {
+          ...((data.days || {})[day] || {}),
+          title
+        }
+      }
+    });
+  }
+  function addDay() {
+    const last = days.length ? days[days.length - 1] : new Date().toISOString().slice(0, 10);
+    const next = days.length ? addDays(last, 1) : last;
+    commit({
+      ...data,
+      days: {
+        ...(data.days || {}),
+        [next]: {
+          title: ""
+        }
+      }
+    });
+    setOpen(o => ({
+      ...o,
+      [next]: true
+    }));
+  }
+  function removeDay(day) {
+    const ns = {
+      ...data.stops
+    };
+    Object.values(stopsOfDay(data, day)).forEach(s => delete ns[s.id]);
+    const nd = {
+      ...(data.days || {})
+    };
+    delete nd[day];
+    commit({
+      ...data,
+      stops: ns,
+      days: nd
+    });
+  }
   async function calcKm() {
     setBusy(true);
     setMsg("Calcolo in corso…");
-    const arr = [...stops];
     const ns = {
       ...data.stops
     };
     try {
-      for (const st of arr) {
-        if ((st.lat == null || st.lon == null) && (st.place || st.name)) {
-          const g = await geocode(st.place || st.name);
-          if (g) {
-            ns[st.id] = {
+      for (const day of days) {
+        const arr = stopsOfDay(data, day).filter(s => !s.noGeo);
+        for (const st of arr) {
+          if (!coordOfStop(st) && (st.place || st.name)) {
+            const g = await geocode(st.place || st.name);
+            if (g) ns[st.id] = {
               ...ns[st.id],
               lat: g.lat,
               lon: g.lon
             };
+            await sleep(1100);
           }
-          await sleep(1100);
         }
-      }
-      for (let i = 1; i < arr.length; i++) {
-        const prev = ns[arr[i - 1].id],
-          cur = ns[arr[i].id];
-        if (prev.lat != null && cur.lat != null) {
-          const d = await drive(prev, cur);
-          if (d) {
-            ns[arr[i].id] = {
-              ...cur,
-              kmAuto: Math.round(d.km * 10) / 10,
-              minAuto: Math.round(d.min)
-            };
-          }
+        const pts = dayPoints({
+          ...data,
+          stops: ns
+        }, day);
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i - 1],
+            b = pts[i];
+          if (b.kind !== "stop" || !b.stop) continue;
+          const d = await drive(a, b);
+          if (d) ns[b.stop.id] = {
+            ...ns[b.stop.id],
+            kmAuto: Math.round(d.km * 10) / 10,
+            minAuto: Math.round(d.min)
+          };
           await sleep(300);
         }
       }
@@ -619,75 +816,153 @@ function Itinerario({
     setBusy(false);
     setTimeout(() => setMsg(""), 3500);
   }
-  const totKm = stops.reduce((t, s, i) => t + (i > 0 ? km(s) || 0 : 0), 0);
-  const totNights = stops.reduce((t, s) => t + (Number(s.nights) || 0), 0);
+  const totKm = days.reduce((t, d) => t + dayKm(data, d), 0);
+  const totStops = toArr(data.stops).length;
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     title: "Itinerario",
-    note: `${stops.length} tappe`
+    note: `${days.length} giorni · ${totStops} tappe`
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 mb-4"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: calcKm,
-    disabled: busy || stops.length < 2,
+    disabled: busy || totStops < 2,
     className: "flex-1 text-[13px] font-medium rounded-xl border border-moss/25 bg-moss text-card py-2.5 disabled:opacity-40 active:scale-[.99] transition"
   }, busy ? "…" : "Calcola km automatici"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setAdding(true),
+    onClick: addDay,
     className: "px-4 text-[13px] font-medium rounded-xl border border-hair bg-card text-moss py-2.5 active:scale-[.99] transition"
-  }, "+ Tappa")), msg && /*#__PURE__*/React.createElement("p", {
+  }, "+ Giorno")), msg && /*#__PURE__*/React.createElement("p", {
     className: "text-[12px] text-slate mb-3 -mt-1"
-  }, msg), adding && /*#__PURE__*/React.createElement(StopForm, {
-    onSave: addStop,
-    onCancel: () => setAdding(false)
-  }), stops.length === 0 && !adding && /*#__PURE__*/React.createElement(Empty, {
-    text: "Nessuna tappa. Aggiungi la prima città del viaggio (es. Reykjavík)."
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "relative"
-  }, stops.map((st, i) => /*#__PURE__*/React.createElement("div", {
-    key: st.id,
-    className: "relative spine pl-9 pb-1"
-  }, i > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "absolute left-0 -top-3 pl-9 text-[11px] font-mono text-copper"
-  }, km(st) != null ? `↓ ${isEst(st) ? "≈ " : ""}${num(km(st))} km${st.minAuto ? " · " + fmtMin(st.minAuto) : ""}` : "↓ —"), /*#__PURE__*/React.createElement("span", {
-    className: "node absolute left-[4px] top-1.5 w-3.5 h-3.5 rounded-full bg-moss"
-  }), /*#__PURE__*/React.createElement(StopCard, {
-    st: st,
-    first: i === 0,
-    last: i === stops.length - 1,
-    onUpdate: p => updateStop(st.id, p),
-    onRemove: () => removeStop(st.id),
-    onMove: d => move(st.id, d)
-  })))), stops.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, msg), days.length === 0 && /*#__PURE__*/React.createElement(Empty, {
+    text: "Nessun giorno. Premi «+ Giorno» per iniziare a costruire l'itinerario."
+  }), days.map((day, di) => /*#__PURE__*/React.createElement(DayBlock, {
+    key: day,
+    data: data,
+    day: day,
+    n: di + 1,
+    open: !!open[day],
+    onToggle: () => setOpen(o => ({
+      ...o,
+      [day]: !o[day]
+    })),
+    adding: addTo === day,
+    onAdd: () => setAddTo(day),
+    onCancelAdd: () => setAddTo(null),
+    onSaveAdd: st => addStop(day, st),
+    onUpdate: updateStop,
+    onRemove: removeStop,
+    onMove: (id, dir) => move(day, id, dir),
+    onTitle: t => setTitle(day, t),
+    onRemoveDay: () => removeDay(day)
+  })), days.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mt-4 grid grid-cols-2 gap-3"
   }, /*#__PURE__*/React.createElement(Stat, {
     label: "Distanza totale",
-    value: `${num(totKm)} km`
+    value: `${num(Math.round(totKm))} km`,
+    sub: fmtMin(Math.round(totKm / 72 * 60))
   }), /*#__PURE__*/React.createElement(Stat, {
-    label: "Notti totali",
-    value: `${totNights}`
+    label: "Tappe",
+    value: `${totStops}`
   })));
-  function km(st) {
-    const v = st.kmManual ?? st.kmAuto;
-    if (v != null) return v;
-    const i = stops.findIndex(s => s.id === st.id);
-    if (i < 1) return null;
-    const a = coordOfStop(stops[i - 1]),
-      b = coordOfStop(st);
-    if (!a || !b) return null;
-    return Math.round(pathKm(ringPath(a, b)) / 5) * 5;
-  }
-  function isEst(st) {
-    return (st.kmManual ?? st.kmAuto) == null;
-  }
 }
-function coordOfStop(st) {
-  return st.lat != null && st.lon != null ? [st.lat, st.lon] : lookupPlace(st.place, st.name);
+function DayBlock({
+  data,
+  day,
+  n,
+  open,
+  onToggle,
+  adding,
+  onAdd,
+  onCancelAdd,
+  onSaveAdd,
+  onUpdate,
+  onRemove,
+  onMove,
+  onTitle,
+  onRemoveDay
+}) {
+  const stops = stopsOfDay(data, day);
+  const pts = dayPoints(data, day);
+  const legs = legsOf(pts);
+  const km = legs.reduce((t, l) => t + l.km, 0);
+  const night = lodgingFor(data, day);
+  const title = dayTitle(data, day);
+  const kmTo = st => {
+    const i = pts.findIndex(p => p.stop && p.stop.id === st.id);
+    if (i < 1) return null;
+    const l = legs[i - 1];
+    return l ? {
+      km: l.km,
+      real: l.real,
+      min: st.minAuto
+    } : null;
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mb-3 rounded-2xl border overflow-hidden " + (open ? "border-moss/30 bg-cardsoft" : "border-hair bg-card")
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onToggle,
+    className: "w-full text-left px-4 py-3 flex items-start gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "shrink-0 w-7 h-7 rounded-full bg-moss text-card text-[12px] font-semibold flex items-center justify-center mt-0.5"
+  }, n), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "block font-display text-[17px] text-moss leading-tight"
+  }, dayLabel(day), title ? " · " + title : ""), /*#__PURE__*/React.createElement("span", {
+    className: "block text-[12px] text-mute mt-0.5"
+  }, stops.length, stops.length === 1 ? " tappa" : " tappe", km > 0 ? " · ≈ " + num(Math.round(km)) + " km" : ""), night && /*#__PURE__*/React.createElement("span", {
+    className: "block text-[12px] text-slate mt-0.5"
+  }, "Pernotto: ", night.name || night.place)), /*#__PURE__*/React.createElement("span", {
+    className: "text-mute text-[12px] mt-1"
+  }, open ? "▲" : "▼")), open && /*#__PURE__*/React.createElement("div", {
+    className: "px-4 pb-4 fade"
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Titolo della giornata"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: title,
+    onChange: e => onTitle(e.target.value),
+    placeholder: "es. Golden Circle",
+    className: inp
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, stops.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "text-[12px] text-mute mb-2"
+  }, "Nessuna tappa in questa giornata."), stops.map((st, i) => /*#__PURE__*/React.createElement("div", {
+    key: st.id
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] font-mono text-copper pl-1 mb-1"
+  }, (() => {
+    const k = kmTo(st);
+    return k ? `↓ ${k.real ? "" : "≈ "}${num(Math.round(k.km))} km${k.real && k.min ? " · " + fmtMin(k.min) : ""}` : "↓ —";
+  })()), /*#__PURE__*/React.createElement(StopCard, {
+    st: st,
+    first: i === 0,
+    last: i === stops.length - 1,
+    onUpdate: p => onUpdate(st.id, p),
+    onRemove: () => onRemove(st.id),
+    onMove: d => onMove(st.id, d)
+  }))), night && /*#__PURE__*/React.createElement("div", {
+    className: "text-[12px] text-slate bg-card border border-hair rounded-xl px-3 py-2 mt-1"
+  }, "🛏 ", night.name || night.place, night.place && night.name !== night.place ? " · " + night.place : "")), adding ? /*#__PURE__*/React.createElement(StopForm, {
+    onSave: onSaveAdd,
+    onCancel: onCancelAdd
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mt-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onAdd,
+    className: "flex-1 rounded-xl border border-hair bg-card py-2 text-[12px] text-moss"
+  }, "+ Tappa"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm("Eliminare " + dayLabel(day) + " e tutte le sue tappe?")) onRemoveDay();
+    },
+    className: "px-3 rounded-xl border border-hair bg-card py-2 text-[12px] text-copper"
+  }, "Elimina giorno"))));
 }
 function fmtMin(m) {
   const h = Math.floor(m / 60),
     mm = Math.round(m % 60);
-  return h ? `${h}h${mm.toString().padStart(2, "0")}` : `${mm}min`;
+  return h ? h + " h " + (mm ? mm + " min" : "") : mm + " min";
 }
 function StopCard({
   st,
@@ -698,36 +973,42 @@ function StopCard({
   onMove
 }) {
   const [open, setOpen] = useState(false);
+  const placed = st.noGeo ? null : coordOfStop(st);
   return /*#__PURE__*/React.createElement("div", {
-    className: "bg-card border border-hair rounded-2xl px-4 py-3 mb-4"
+    className: "bg-card border border-hair rounded-xl px-3 py-2.5 mb-2"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-start justify-between gap-2"
   }, /*#__PURE__*/React.createElement("button", {
-    className: "text-left flex-1",
+    className: "text-left flex-1 min-w-0",
     onClick: () => setOpen(o => !o)
   }, /*#__PURE__*/React.createElement("div", {
-    className: "font-display text-[17px] text-moss leading-tight"
-  }, st.name || st.place), /*#__PURE__*/React.createElement("div", {
-    className: "text-[12px] text-mute mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5"
-  }, st.place && st.place !== st.name && /*#__PURE__*/React.createElement("span", null, st.place), st.arrive && /*#__PURE__*/React.createElement("span", null, new Date(st.arrive).toLocaleDateString("it-IT", {
-    day: "numeric",
-    month: "short"
-  })), st.nights > 0 && /*#__PURE__*/React.createElement("span", null, st.nights, " ", st.nights == 1 ? "notte" : "notti")), st.notes && /*#__PURE__*/React.createElement("div", {
-    className: "text-[12px] text-ink/70 mt-1.5"
-  }, st.notes)), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col items-end gap-1"
+    className: "text-[14px] text-ink leading-snug"
+  }, st.name || st.place, !placed && !st.noGeo && /*#__PURE__*/React.createElement("span", {
+    className: "text-[11px] text-copper"
+  }, " · da collocare")), (st.place && st.place !== st.name || st.notes) && /*#__PURE__*/React.createElement("div", {
+    className: "text-[12px] text-mute mt-0.5"
+  }, [st.place && st.place !== st.name ? st.place : "", st.notes].filter(Boolean).join(" · "))), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-1 shrink-0"
   }, !first && /*#__PURE__*/React.createElement("button", {
     onClick: () => onMove(-1),
-    className: "text-mute active:text-moss px-1"
+    className: "text-mute active:text-moss px-1 text-[12px]"
   }, "▲"), !last && /*#__PURE__*/React.createElement("button", {
     onClick: () => onMove(1),
-    className: "text-mute active:text-moss px-1"
+    className: "text-mute active:text-moss px-1 text-[12px]"
   }, "▼"))), open && /*#__PURE__*/React.createElement("div", {
-    className: "mt-3 pt-3 border-t border-hair fade"
+    className: "mt-2.5 pt-2.5 border-t border-hair fade"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-3"
   }, /*#__PURE__*/React.createElement(Field, {
-    label: "Città / luogo"
+    label: "Nome"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: st.name || "",
+    onChange: e => onUpdate({
+      name: e.target.value
+    }),
+    className: inp
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Località (per la mappa)"
   }, /*#__PURE__*/React.createElement("input", {
     value: st.place || "",
     onChange: e => onUpdate({
@@ -737,34 +1018,15 @@ function StopCard({
     }),
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Nome tappa"
+    label: "Note"
   }, /*#__PURE__*/React.createElement("input", {
-    value: st.name || "",
+    value: st.notes || "",
     onChange: e => onUpdate({
-      name: e.target.value
+      notes: e.target.value
     }),
     className: inp
   })), /*#__PURE__*/React.createElement(Field, {
-    label: "Arrivo"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "date",
-    value: st.arrive || "",
-    onChange: e => onUpdate({
-      arrive: e.target.value
-    }),
-    className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "Notti"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    min: "0",
-    value: st.nights ?? "",
-    onChange: e => onUpdate({
-      nights: e.target.value === "" ? "" : +e.target.value
-    }),
-    className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "Km da tappa prec." + (st.kmAuto != null && st.kmManual == null ? " (auto)" : "")
+    label: "Km dalla tappa prec." + (st.kmAuto != null && st.kmManual == null ? " (auto)" : "")
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     step: "0.1",
@@ -772,14 +1034,6 @@ function StopCard({
     value: st.kmManual ?? "",
     onChange: e => onUpdate({
       kmManual: e.target.value === "" ? null : +e.target.value
-    }),
-    className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "Note"
-  }, /*#__PURE__*/React.createElement("input", {
-    value: st.notes || "",
-    onChange: e => onUpdate({
-      notes: e.target.value
     }),
     className: inp
   }))), /*#__PURE__*/React.createElement("button", {
@@ -792,10 +1046,8 @@ function StopForm({
   onCancel
 }) {
   const [f, setF] = useState({
-    place: "",
     name: "",
-    arrive: "",
-    nights: 1,
+    place: "",
     notes: ""
   });
   const set = (k, v) => setF(p => ({
@@ -803,38 +1055,23 @@ function StopForm({
     [k]: v
   }));
   return /*#__PURE__*/React.createElement("div", {
-    className: "bg-cardsoft border border-hair rounded-2xl p-4 mb-4 fade"
+    className: "bg-card border border-hair rounded-xl p-3 mt-3 fade"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-3"
   }, /*#__PURE__*/React.createElement(Field, {
-    label: "Città / luogo *"
+    label: "Nome tappa *"
   }, /*#__PURE__*/React.createElement("input", {
     autoFocus: true,
-    value: f.place,
-    onChange: e => set("place", e.target.value),
-    placeholder: "Es. Vík",
-    className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "Nome tappa"
-  }, /*#__PURE__*/React.createElement("input", {
     value: f.name,
     onChange: e => set("name", e.target.value),
+    placeholder: "Es. Gullfoss",
+    className: inp
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Località (se diversa)"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: f.place,
+    onChange: e => set("place", e.target.value),
     placeholder: "opzionale",
-    className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "Arrivo"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "date",
-    value: f.arrive,
-    onChange: e => set("arrive", e.target.value),
-    className: inp
-  })), /*#__PURE__*/React.createElement(Field, {
-    label: "Notti"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    min: "0",
-    value: f.nights,
-    onChange: e => set("nights", +e.target.value),
     className: inp
   }))), /*#__PURE__*/React.createElement(Field, {
     label: "Note"
@@ -845,15 +1082,15 @@ function StopForm({
   })), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 mt-3"
   }, /*#__PURE__*/React.createElement("button", {
-    disabled: !f.place.trim(),
+    disabled: !f.name.trim(),
     onClick: () => onSave({
       ...f,
-      name: f.name.trim() || f.place.trim()
+      name: f.name.trim()
     }),
-    className: "flex-1 rounded-xl bg-moss text-card py-2.5 text-[13px] font-medium disabled:opacity-40"
+    className: "flex-1 rounded-xl bg-moss text-card py-2 text-[13px] font-medium disabled:opacity-40"
   }, "Salva"), /*#__PURE__*/React.createElement("button", {
     onClick: onCancel,
-    className: "px-4 rounded-xl border border-hair bg-card py-2.5 text-[13px]"
+    className: "px-4 rounded-xl border border-hair bg-card py-2 text-[13px]"
   }, "Annulla")));
 }
 
@@ -2398,10 +2635,21 @@ function pathKm(pts) {
   return t * 1.15; // le corde sottostimano il percorso reale
 }
 /* --- costruzione delle tappe dal contenuto dell'app --- */
-function tripLegs(data) {
-  const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
-  const stops = toArr(data.stops).sort((a, b) => (a.order || 0) - (b.order || 0));
+function tripLegs(data, day) {
   const missing = [];
+  if (day) {
+    stopsOfDay(data, day).forEach(s => {
+      if (!s.noGeo && !coordOfStop(s)) missing.push(s.name || s.place);
+    });
+    const pts = dayPoints(data, day);
+    return {
+      seq: pts,
+      legs: legsOf(pts),
+      missing
+    };
+  }
+  const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
+  const days = dayList(data);
   const seq = [];
   const push = (label, sub, coord, kind, extra) => {
     if (!coord) {
@@ -2422,36 +2670,30 @@ function tripLegs(data) {
       ...extra
     });
   };
-  if (stops.length >= 2) {
-    stops.forEach(st => {
-      const c = st.lat != null && st.lon != null ? [st.lat, st.lon] : lookupPlace(st.place, st.name);
-      push(st.name || st.place || "Tappa", [st.place && st.place !== st.name ? st.place : "", st.nights > 0 ? st.nights + (st.nights == 1 ? " notte" : " notti") : ""].filter(Boolean).join(" · "), c, "stop", {
-        km: st.kmManual ?? st.kmAuto ?? null
-      });
-    });
+  if (stays.length) {
+    const firstDay = days.length ? days[0] : null;
+    if (firstDay) {
+      const s0 = stopsOfDay(data, firstDay).find(s => !s.noGeo && coordOfStop(s));
+      if (s0 && !lodgingFor(data, addDays(firstDay, -1))) push(s0.name || s0.place, dayLabel(firstDay), coordOfStop(s0), "stop", {});
+    }
+    stays.forEach(s => push(s.place || s.name || "Alloggio", fmtRange(s.checkIn, s.checkOut), stayCoord(s), "stay", {
+      stay: s
+    }));
+    const lastDay = days.length ? days[days.length - 1] : null;
+    if (lastDay) {
+      const arr = stopsOfDay(data, lastDay).filter(s => !s.noGeo && coordOfStop(s));
+      const sl = arr[arr.length - 1];
+      if (sl) push(sl.name || sl.place, dayLabel(lastDay), coordOfStop(sl), "stop", {});
+    }
   } else {
-    stays.forEach(s => {
-      const c = s.lat != null && s.lon != null ? [s.lat, s.lon] : lookupPlace(s.place, s.name);
-      push(s.place || s.name || "Alloggio", fmtRange(s.checkIn, s.checkOut), c, "stay", {
-        stay: s
-      });
-    });
-  }
-  const legs = [];
-  for (let i = 1; i < seq.length; i++) {
-    const pts = ringPath([seq[i - 1].lat, seq[i - 1].lon], [seq[i].lat, seq[i].lon]);
-    const km = seq[i].km != null ? seq[i].km : Math.round(pathKm(pts) / 5) * 5;
-    legs.push({
-      from: seq[i - 1],
-      to: seq[i],
-      pts,
-      km,
-      real: seq[i].km != null
+    days.forEach(d => {
+      const arr = stopsOfDay(data, d).filter(s => !s.noGeo && coordOfStop(s));
+      if (arr.length) push(arr[0].name || arr[0].place, dayLabel(d), coordOfStop(arr[0]), "stop", {});
     });
   }
   return {
     seq,
-    legs,
+    legs: legsOf(seq),
     missing
   };
 }
@@ -2461,7 +2703,7 @@ function buildMapSVG(data, opts) {
   const {
     seq,
     legs
-  } = tripLegs(data);
+  } = tripLegs(data, opts.day);
   const X = p => mLon(p[1]).toFixed(1),
     Y = p => mLat(p[0]).toFixed(1);
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MAPW} 720" width="100%" preserveAspectRatio="xMidYMid meet" font-family="Inter,system-ui,sans-serif">
@@ -2495,6 +2737,23 @@ function buildMapSVG(data, opts) {
       unpaid: !!(p.stay && p.stay.paidBy === "none")
     });
   });
+  const bx0 = seq.map(p => mLon(p.lon)),
+    by0 = seq.map(p => mLat(p.lat));
+  const bbox = seq.length ? {
+    x: Math.min(...bx0),
+    y: Math.min(...by0),
+    w: Math.max(...bx0) - Math.min(...bx0),
+    h: Math.max(...by0) - Math.min(...by0)
+  } : null;
+  // se il percorso del giorno finisce sotto la legenda, sposto la legenda in alto
+  const legendLow = {
+    x: 694,
+    y: 506,
+    w: 298,
+    h: 220
+  };
+  const hits = b => bbox && !(bbox.x - 60 + bbox.w + 120 < b.x || b.x + b.w < bbox.x - 60 || bbox.y - 60 + bbox.h + 120 < b.y || b.y + b.h < bbox.y - 60);
+  const ly = opts.day && hits(legendLow) ? 96 : 506;
   const boxes = [{
     x: 8,
     y: 4,
@@ -2504,9 +2763,9 @@ function buildMapSVG(data, opts) {
   // titolo
   {
     x: 694,
-    y: 530,
+    y: ly,
     w: 298,
-    h: 196
+    h: 220
   } // legenda + scala
   ];
   const fits = b => !boxes.some(o => !(b.x + b.w < o.x || o.x + o.w < b.x || b.y + b.h < o.y || o.y + o.h < b.y)) && b.x > 2 && b.x + b.w < MAPW - 2 && b.y > 2 && b.y + b.h < 700;
@@ -2617,10 +2876,21 @@ function buildMapSVG(data, opts) {
       }
     });
   }
-  // città di riferimento (saltate se finirebbero sotto un'etichetta)
+  // puntini delle tappe dell'itinerario
+  const poiPts = [];
+  if (!opts.day) toArr(data.stops).forEach(st => {
+    if (st.noGeo) return;
+    const c = coordOfStop(st);
+    if (!c) return;
+    if (groups.some(g => Math.abs(g.lat - c[0]) < 0.02 && Math.abs(g.lon - c[1]) < 0.02)) return;
+    if (poiPts.some(p => Math.abs(p[0] - c[0]) < 0.01 && Math.abs(p[1] - c[1]) < 0.01)) return;
+    poiPts.push(c);
+  });
+  // città di riferimento (saltate se finirebbero sotto un'etichetta o su una tappa)
   const onRoute = groups.map(p => normPlace(p.label)).concat(stayPts.map(p => normPlace(p.label)));
   REF.forEach(([n, la, lo]) => {
     if (onRoute.some(r => r && (normPlace(n).indexOf(r) >= 0 || r.indexOf(normPlace(n)) >= 0))) return;
+    if (poiPts.some(p => Math.abs(p[0] - la) < 0.08 && Math.abs(p[1] - lo) < 0.16)) return;
     const x = mLon(lo),
       y = mLat(la);
     const b = {
@@ -2704,6 +2974,15 @@ function buildMapSVG(data, opts) {
       <circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="${g.unpaid ? "#B4552E" : "#274A57"}"/>
       <text x="${x}" y="${(+y + 4.5).toFixed(1)}" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">${t}</text>`;
   });
+  // puntini delle tappe (solo nella vista completa)
+  if (!opts.day) {
+    poiPts.forEach(c => {
+      const x = mLon(c[1]),
+        y = mLat(c[0]);
+      if (boxes.some(o => x > o.x - 2 && x < o.x + o.w + 2 && y > o.y - 2 && y < o.y + o.h + 2)) return;
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="#C8763F" stroke="#FFFFFF" stroke-width="1.4"/>`;
+    });
+  }
   s += stayLayer;
   // titolo
   const totKm = legs.reduce((t, l) => t + l.km, 0);
@@ -2713,26 +2992,27 @@ function buildMapSVG(data, opts) {
     <text y="21" font-size="13.5" fill="#5A7C86">${esc(opts.subtitle || "")}</text>
   </g>`;
   // legenda
-  const ly = 536;
-  s += `<g transform="translate(700,${ly})">
-    <rect x="0" y="0" width="286" height="164" rx="12" fill="#FFFFFF" opacity=".93" stroke="#D3D8D9"/>
+  s += `<g transform="translate(700,${ly + 6})">
+    <rect x="0" y="0" width="286" height="188" rx="12" fill="#FFFFFF" opacity=".93" stroke="#D3D8D9"/>
     <text x="14" y="24" font-size="12" fill="#6E7C80" letter-spacing="1">LEGENDA</text>
     <line x1="14" y1="44" x2="52" y2="44" stroke="#B4552E" stroke-width="4.5" stroke-linecap="round"/>
-    <text x="62" y="48" font-size="13" fill="#1E2A2E">Il vostro percorso · ${num(Math.round(totKm))} km</text>
+    <text x="62" y="48" font-size="13" fill="#1E2A2E">${opts.day ? "Percorso del giorno" : "Il vostro percorso"} · ${num(Math.round(totKm))} km</text>
     <line x1="14" y1="68" x2="52" y2="68" stroke="#8CA1A7" stroke-width="2.6" stroke-dasharray="7 6"/>
     <text x="62" y="72" font-size="13" fill="#1E2A2E">Hringvegur (strada 1)</text>
     <circle cx="24" cy="92" r="9" fill="#274A57"/><text x="24" y="96" font-size="11" font-weight="700" fill="#FFF" text-anchor="middle">n</text>
-    <text x="62" y="96" font-size="13" fill="#1E2A2E">Tappa dell'itinerario</text>
+    <text x="62" y="96" font-size="13" fill="#1E2A2E">${opts.day ? "Tappa della giornata" : "Tappa principale"}</text>
     <rect x="15" y="107" width="18" height="18" rx="5" fill="#FFFFFF" stroke="#274A57" stroke-width="2.2"/>
     <path d="M-4.4,1 L0,-3.6 L4.4,1 L4.4,4.4 L-4.4,4.4 Z" fill="#274A57" transform="translate(24,116)"/>
     <text x="62" y="120" font-size="13" fill="#1E2A2E">Alloggio</text>
     <circle cx="24" cy="140" r="9" fill="#B4552E"/>
     <text x="62" y="144" font-size="13" fill="#1E2A2E">Ancora da pagare</text>
+    ${opts.day ? "" : `<circle cx="24" cy="164" r="3.6" fill="#C8763F" stroke="#FFFFFF" stroke-width="1.4"/>
+    <text x="62" y="168" font-size="13" fill="#1E2A2E">Cosa vedere</text>`}
   </g>`;
   // scala
   const barKm = 100,
     barPx = kmPx(barKm, 64.5);
-  s += `<g transform="translate(700,${ly + 176})">
+  s += `<g transform="translate(700,${ly + 206})">
     <line x1="0" y1="0" x2="${barPx.toFixed(1)}" y2="0" stroke="#5A7C86" stroke-width="2.5"/>
     <line x1="0" y1="-5" x2="0" y2="5" stroke="#5A7C86" stroke-width="2.5"/>
     <line x1="${barPx.toFixed(1)}" y1="-5" x2="${barPx.toFixed(1)}" y2="5" stroke="#5A7C86" stroke-width="2.5"/>
@@ -2743,7 +3023,8 @@ function buildMapSVG(data, opts) {
     svg: s,
     seq,
     legs,
-    totKm
+    totKm,
+    bbox
   };
 }
 /* ---------------- TAB MAPPA ---------------- */
@@ -2751,35 +3032,84 @@ function Mappa({
   data,
   commit
 }) {
+  const [day, setDay] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const box = useRef(null);
+  const days = dayList(data);
   const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
   const first = stays.length ? stays[0].checkIn : "";
   const last = stays.length ? stays[stays.length - 1].checkOut : "";
-  const tl = tripLegs(data);
-  const missing = tl.missing;
+  const title = day ? dayLabel(day) + (dayTitle(data, day) ? " · " + dayTitle(data, day) : "") : (first ? fmtRange(first, last) + " · " : "") + days.length + " giorni";
   const {
     svg,
     legs,
-    totKm
+    totKm,
+    bbox,
+    seq
   } = buildMapSVG(data, {
-    subtitle: (first ? fmtRange(first, last) + " · " : "") + tl.seq.length + " tappe"
+    subtitle: title,
+    day
   });
+  const missing = tripLegs(data, day).missing;
+  // zoom e centratura automatici quando scelgo una giornata
+  useEffect(() => {
+    if (!day || !bbox) {
+      setZoom(1);
+      if (box.current) box.current.scrollTo({
+        left: 0,
+        top: 0
+      });
+      return;
+    }
+    const z = Math.max(1, Math.min(4, Math.round(MAPW / Math.max(bbox.w + 220, 150) * 2) / 2));
+    setZoom(z);
+  }, [day]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !bbox) return;
+    const t = setTimeout(() => {
+      const cx = (bbox.x + bbox.w / 2) / MAPW,
+        cy = (bbox.y + bbox.h / 2) / 720;
+      el.scrollTo({
+        left: Math.max(0, cx * el.scrollWidth - el.clientWidth / 2),
+        top: Math.max(0, cy * el.scrollHeight - el.clientHeight / 2),
+        behavior: "smooth"
+      });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [day, zoom]);
   async function findMissing() {
     setBusy(true);
     setMsg("Cerco le coordinate…");
     const ns = {
+      ...data.stops
+    };
+    const nst = {
       ...data.stays
     };
     let n = 0;
     try {
+      for (const st of toArr(data.stops)) {
+        if (st.noGeo || coordOfStop(st)) continue;
+        const g = await geocode(st.place || st.name);
+        if (g) {
+          ns[st.id] = {
+            ...ns[st.id],
+            lat: g.lat,
+            lon: g.lon
+          };
+          n++;
+        }
+        await sleep(1100);
+      }
       for (const s of stays) {
-        if (s.lat != null || lookupPlace(s.place, s.name)) continue;
+        if (stayCoord(s)) continue;
         const g = await geocode(s.place || s.name);
         if (g) {
-          ns[s.id] = {
-            ...ns[s.id],
+          nst[s.id] = {
+            ...nst[s.id],
             lat: g.lat,
             lon: g.lon
           };
@@ -2789,7 +3119,8 @@ function Mappa({
       }
       commit({
         ...data,
-        stays: ns
+        stops: ns,
+        stays: nst
       });
       setMsg(n ? n + " posizioni trovate ✓" : "Nessuna posizione trovata");
     } catch (e) {
@@ -2798,12 +3129,22 @@ function Mappa({
     setBusy(false);
     setTimeout(() => setMsg(""), 3500);
   }
+  const chip = (id, label, sel) => /*#__PURE__*/React.createElement("button", {
+    key: id || "all",
+    onClick: () => setDay(id),
+    className: "shrink-0 px-3 py-1.5 rounded-full text-[12px] border transition " + (sel ? "bg-moss text-card border-moss" : "bg-card text-slate border-hair")
+  }, label);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     title: "Mappa",
-    note: legs.length ? num(Math.round(totKm)) + " km" : ""
+    note: legs.length ? (day ? "" : "") + num(Math.round(totKm)) + " km" : ""
   }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 overflow-x-auto pb-2 mb-2",
+    style: {
+      WebkitOverflowScrolling: "touch"
+    }
+  }, chip(null, "Tutto il viaggio", !day), days.map((d, i) => chip(d, dayLabel(d), day === d))), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2 mb-3"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setZoom(z => Math.max(1, +(z - 0.5).toFixed(1))),
@@ -2814,9 +3155,11 @@ function Mappa({
   }, "+"), /*#__PURE__*/React.createElement("span", {
     className: "text-[11px] text-mute"
   }, "zoom ", zoom, "× · ", zoom === 1 ? "isola intera" : "scorri per esplorare")), /*#__PURE__*/React.createElement("div", {
+    ref: box,
     className: "bg-card border border-hair rounded-2xl overflow-auto",
     style: {
-      WebkitOverflowScrolling: "touch"
+      WebkitOverflowScrolling: "touch",
+      maxHeight: "72vh"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2826,7 +3169,9 @@ function Mappa({
     dangerouslySetInnerHTML: {
       __html: svg
     }
-  })), missing.length > 0 && /*#__PURE__*/React.createElement("div", {
+  })), day && /*#__PURE__*/React.createElement("p", {
+    className: "text-[12px] text-slate mt-2"
+  }, "Percorso di ", dayLabel(day), ": ", seq.length, " punti · ≈ ", num(Math.round(totKm)), " km · ", fmtMin(Math.round(totKm / 72 * 60)), " di guida"), missing.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mt-3 bg-card border border-copper/30 rounded-2xl p-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-[12px] text-copper mb-2"
@@ -2849,13 +3194,13 @@ function Mappa({
     className: "font-mono text-[13px] text-slate whitespace-nowrap"
   }, l.real ? "" : "≈ ", num(Math.round(l.km)), " km", /*#__PURE__*/React.createElement("span", {
     className: "block text-[10px] text-mute text-right"
-  }, fmtMin(Math.round(l.km / 72 * 60))))), /*#__PURE__*/React.createElement("div", {
+  }, fmtMin(Math.round(l.km / 72 * 60)))))), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between px-3 pt-1"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[12px] text-mute"
   }, "Totale"), /*#__PURE__*/React.createElement("span", {
     className: "font-mono text-[13px] text-ink"
-  }, num(Math.round(totKm)), " km · ", fmtMin(Math.round(totKm / 72 * 60)))))), /*#__PURE__*/React.createElement("p", {
+  }, num(Math.round(totKm)), " km · ", fmtMin(Math.round(totKm / 72 * 60))))), /*#__PURE__*/React.createElement("p", {
     className: "text-[11px] text-mute mt-3 leading-relaxed"
   }, "Le distanze seguono la strada 1 e sono stime; quelle calcolate nell'Itinerario hanno la precedenza. Contorni: Natural Earth."), /*#__PURE__*/React.createElement(PdfButton, null));
 }
