@@ -73,6 +73,13 @@ tailwind.config = {
   #report .cols{ display:flex; gap:10px; }
   #report .cols > div{ flex:1; }
   #report .foot{ margin-top:18px; font-size:9px; color:#6E7C80; }
+  #report .pagebreak{ page-break-before:always; }
+  #report .day{ border:1px solid #D3D8D9; border-radius:8px; padding:6px 8px; margin-bottom:6px; page-break-inside:avoid; }
+  #report .dayhead{ display:flex; align-items:baseline; gap:6px; margin-bottom:2px; }
+  #report .daynum{ display:inline-block; min-width:16px; height:16px; border-radius:8px; background:#274A57; color:#fff;
+                   font-size:9px; text-align:center; line-height:16px; padding:0 4px; }
+  #report .daymeta{ color:#6E7C80; font-size:9.5px; margin-left:auto; }
+  #report .day td{ border-bottom:1px solid #F1F4F4; padding:3px 6px; }
   #report .mapwrap{ margin:6px 0 4px; }
   #report .mapwrap svg{ width:100%; height:auto; }
   @media print{ #report .mapwrap{ break-after:page; page-break-after:always; } }
@@ -410,6 +417,25 @@ function App() {
     }
   }
   const seedRef = useRef(false);
+  const [printMode, setPrintMode] = useState(null);
+  useEffect(() => {
+    const h = e => setPrintMode(e.detail || "full");
+    window.addEventListener("app-print", h);
+    return () => window.removeEventListener("app-print", h);
+  }, []);
+  useEffect(() => {
+    if (!printMode) return;
+    const t = setTimeout(() => {
+      const prev = document.title;
+      document.title = PRINT_TITLES[printMode] || prev;
+      window.print();
+      setTimeout(() => {
+        document.title = prev;
+        setPrintMode(null);
+      }, 800);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [printMode]);
   useEffect(() => {
     if (data === null || seedRef.current) return;
     seedRef.current = true;
@@ -483,7 +509,8 @@ function App() {
   })), /*#__PURE__*/React.createElement(Report, {
     data: data,
     A: A,
-    B: B
+    B: B,
+    mode: printMode || "full"
   }));
 }
 
@@ -864,7 +891,9 @@ function Itinerario({
   }), /*#__PURE__*/React.createElement(Stat, {
     label: "Tappe",
     value: `${totStops}`
-  })));
+  })), days.length > 0 && /*#__PURE__*/React.createElement(PdfButton, {
+    mode: "viaggio"
+  }));
 }
 function DayBlock({
   data,
@@ -934,7 +963,7 @@ function DayBlock({
     className: "text-[11px] font-mono text-copper pl-1 mb-1"
   }, (() => {
     const k = kmTo(st);
-    return k ? `↓ ${k.real ? "" : "≈ "}${num(Math.round(k.km))} km${k.real && k.min ? " · " + fmtMin(k.min) : ""}` : "↓ —";
+    return k && Math.round(k.km) > 0 ? `↓ ${k.real ? "" : "≈ "}${num(Math.round(k.km))} km${k.real && k.min ? " · " + fmtMin(k.min) : ""}` : k ? "↓ a due passi" : "↓ —";
   })()), /*#__PURE__*/React.createElement(StopCard, {
     st: st,
     first: i === 0,
@@ -1499,7 +1528,9 @@ function Spese({
     label: "Da pagare",
     value: money(totDaPagare),
     sub: eurApprox(totDaPagare)
-  })), list.length > 0 && /*#__PURE__*/React.createElement(PdfButton, null), manage && /*#__PURE__*/React.createElement(CategoryManager, {
+  })), list.length > 0 && /*#__PURE__*/React.createElement(PdfButton, {
+    mode: "spese"
+  }), manage && /*#__PURE__*/React.createElement(CategoryManager, {
     data: data,
     cats: cats,
     commit: commit,
@@ -1856,7 +1887,10 @@ function Riepilogo({
   }), /*#__PURE__*/React.createElement(Stat, {
     label: "Tappe",
     value: `${stops.length}`
-  })), /*#__PURE__*/React.createElement(PdfButton, null));
+  })), /*#__PURE__*/React.createElement(PdfButton, {
+    mode: "spese",
+    also: ["full"]
+  }));
 }
 function PersonCard({
   name,
@@ -3202,22 +3236,40 @@ function Mappa({
     className: "font-mono text-[13px] text-ink"
   }, num(Math.round(totKm)), " km · ", fmtMin(Math.round(totKm / 72 * 60))))), /*#__PURE__*/React.createElement("p", {
     className: "text-[11px] text-mute mt-3 leading-relaxed"
-  }, "Le distanze seguono la strada 1 e sono stime; quelle calcolate nell'Itinerario hanno la precedenza. Contorni: Natural Earth."), /*#__PURE__*/React.createElement(PdfButton, null));
+  }, "Le distanze seguono la strada 1 e sono stime; quelle calcolate nell'Itinerario hanno la precedenza. Contorni: Natural Earth."), /*#__PURE__*/React.createElement(PdfButton, {
+    mode: "viaggio",
+    also: ["full"]
+  }));
 }
 
 /* ---------------- Export PDF (stampa del report) ---------------- */
-function PdfButton() {
-  return /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      const t = document.title;
-      document.title = "Islanda — spese e saldo";
-      window.print();
-      setTimeout(() => {
-        document.title = t;
-      }, 1000);
-    },
-    className: "w-full mt-4 rounded-xl border border-hair bg-card text-slate py-2.5 text-[13px] font-medium active:scale-[.99] transition"
-  }, "Esporta PDF (spese e saldo)");
+const PRINT_TITLES = {
+  spese: "Islanda — spese e saldo",
+  viaggio: "Islanda — itinerario e alloggi",
+  full: "Islanda — il viaggio"
+};
+const PRINT_LABELS = {
+  spese: "Esporta PDF · spese e saldo",
+  viaggio: "Esporta PDF · itinerario e alloggi",
+  full: "Esporta PDF · documento completo"
+};
+function askPrint(mode) {
+  window.dispatchEvent(new CustomEvent("app-print", {
+    detail: mode
+  }));
+}
+function PdfButton({
+  mode,
+  also
+}) {
+  const btn = (m, primary) => /*#__PURE__*/React.createElement("button", {
+    key: m,
+    onClick: () => askPrint(m),
+    className: "w-full mt-2 rounded-xl border py-2.5 text-[13px] font-medium active:scale-[.99] transition " + (primary ? "border-hair bg-card text-slate" : "border-hair bg-cardsoft text-mute")
+  }, PRINT_LABELS[m]);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "mt-3"
+  }, btn(mode || "full", true), (also || []).map(m => btn(m, false)));
 }
 const esc = v => String(v == null ? "" : v).replace(/[&<>"]/g, c => ({
   "&": "&amp;",
@@ -3234,7 +3286,10 @@ function cell(base) {
   const e = eurApprox(base);
   return money(base) + (e ? '<span class="eur">' + e + "</span>" : "");
 }
-function buildReport(data, A, B) {
+function buildReport(data, A, B, mode) {
+  mode = mode || "full";
+  const wantSoldi = mode === "spese" || mode === "full";
+  const wantViaggio = mode === "viaggio" || mode === "full";
   const stays = toArr(data.stays).sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || ""));
   const exps = toArr(data.expenses).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const who = p => p === "A" ? esc(A) : p === "B" ? esc(B) : '<span class="due">da pagare</span>';
@@ -3262,90 +3317,122 @@ function buildReport(data, A, B) {
   const total = paidA + paidB;
   const netA = paidA - shareA;
   const owe = Math.abs(netA);
-  const conguaglio = owe < 0.01 ? "Conti in pari" : (netA > 0 ? esc(B) + " deve a " + esc(A) : esc(A) + " deve a " + esc(B));
+  const conguaglio = owe < 0.01 ? "Conti in pari" : netA > 0 ? esc(B) + " deve a " + esc(A) : esc(A) + " deve a " + esc(B);
   const first = stays.length ? stays[0].checkIn : "";
   const last = stays.length ? stays[stays.length - 1].checkOut : "";
   const nights = stays.reduce((t, s) => t + nightsBetween(s.checkIn, s.checkOut), 0);
-  const staysRows = stays.map(s => {
-    const base = toBase(s.cost, s.curr);
-    return `<tr><td>${esc(s.name) || "—"}</td><td>${esc(s.place)}</td><td>${dIt(s.checkIn)} → ${dIt(s.checkOut)}</td><td class="n">${nightsBetween(s.checkIn, s.checkOut)}</td><td class="n">${cell(base)}</td><td>${who(s.paidBy)}</td></tr>`;
-  }).join("");
+  const days = dayList(data);
+  const totKm = days.reduce((t, d) => t + dayKm(data, d), 0);
   const staysTot = stays.reduce((t, s) => t + toBase(s.cost, s.curr), 0);
-  const expRows = exps.map(e => {
-    const base = toBase(e.amount, e.curr);
-    return `<tr><td class="n">${dIt(e.date)}</td><td>${esc(e.description) || "—"}</td><td>${esc(e.category)}</td><td class="n">${cell(base)}</td><td>${who(e.paidBy)}</td></tr>`;
-  }).join("");
   const expTot = exps.reduce((t, e) => t + toBase(e.amount, e.curr), 0);
-  const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td class="n">${cell(v)}</td><td class="n">${(v / total * 100).toFixed(0)}%</td></tr>`).join("");
-  const person = (name, paid, share) => {
-    const net = paid - share;
-    return `<div class="box"><div style="font-weight:600;margin-bottom:4px">${esc(name)}</div>
-      <table><tr><td>Anticipato</td><td class="n">${cell(paid)}</td></tr>
-      <tr><td>Quota dovuta</td><td class="n">${cell(share)}</td></tr>
-      <tr class="tot"><td>${net >= 0 ? "A credito" : "A debito"}</td><td class="n">${cell(Math.abs(net))}</td></tr></table></div>`;
-  };
-  const map = buildMapSVG(data, {
-    subtitle: (first ? fmtRange(first, last) + " · " : "") + nights + " notti"
-  });
-  return `
-    <h1>Islanda — spese e saldo</h1>
-    <div class="sub">${first ? fmtRange(first, last) + " · " + nights + " notti · " : ""}${esc(A)} &amp; ${esc(B)} · report del ${dIt(new Date().toISOString().slice(0, 10))}</div>
 
-    ${map.legs.length ? `<div style="border:1px solid #D3D8D9;border-radius:8px;overflow:hidden;margin-bottom:4px">${map.svg}</div>` : ""}
+  /* --- intestazione --- */
+  const head = `
+    <h1>Islanda — ${mode === "spese" ? "spese e saldo" : mode === "viaggio" ? "itinerario e alloggi" : "il viaggio"}</h1>
+    <div class="sub">${first ? fmtRange(first, last) + " · " + nights + " notti · " : ""}${esc(A)} &amp; ${esc(B)} · report del ${dIt(new Date().toISOString().slice(0, 10))}</div>`;
 
-    ${(() => {
-    try {
-      const m = buildMapSVG(data, {
-        subtitle: (first ? fmtRange(first, last) + " · " : "") + nights + " notti"
+  /* --- sezione viaggio: mappa + itinerario + alloggi --- */
+  let viaggio = "";
+  if (wantViaggio) {
+    const map = buildMapSVG(data, {
+      subtitle: (first ? fmtRange(first, last) + " · " : "") + days.length + " giorni · " + num(Math.round(totKm)) + " km"
+    });
+    if (map.legs.length) viaggio += `<div style="border:1px solid #D3D8D9;border-radius:8px;overflow:hidden;margin-bottom:4px">${map.svg}</div>`;
+    if (days.length) {
+      viaggio += `<h2>Itinerario giorno per giorno</h2>`;
+      days.forEach((day, i) => {
+        const stops = stopsOfDay(data, day);
+        const pts = dayPoints(data, day);
+        const legs = legsOf(pts);
+        const km = legs.reduce((t, l) => t + l.km, 0);
+        const night = lodgingFor(data, day);
+        const title = dayTitle(data, day);
+        const rows = stops.map((st, j) => {
+          const k = (() => {
+            const idx = pts.findIndex(p => p.stop && p.stop.id === st.id);
+            if (idx < 1) return "";
+            const l = legs[idx - 1];
+            return l && Math.round(l.km) > 0 ? `${l.real ? "" : "≈ "}${num(Math.round(l.km))} km` : "";
+          })();
+          return `<tr><td class="n" style="width:22px;color:#6E7C80">${j + 1}</td><td>${esc(st.name || st.place)}${st.noGeo ? ' <span style="color:#6E7C80">(da definire)</span>' : ""}</td><td style="color:#6E7C80">${esc([st.place && st.place !== st.name ? st.place : "", st.notes].filter(Boolean).join(" · "))}</td><td class="n">${k}</td></tr>`;
+        }).join("");
+        viaggio += `<div class="day">
+          <div class="dayhead"><span class="daynum">${i + 1}</span><b>${esc(dayLabel(day))}${title ? " · " + esc(title) : ""}</b>
+            <span class="daymeta">${stops.length} ${stops.length === 1 ? "tappa" : "tappe"}${km ? " · ≈ " + num(Math.round(km)) + " km" : ""}${night ? " · pernotto: " + esc(night.name || night.place) : ""}</span></div>
+          ${stops.length ? `<table>${rows}</table>` : '<div style="color:#6E7C80;padding:2px 6px">Giornata libera.</div>'}
+        </div>`;
       });
-      return `<div class="mapwrap">${m.svg}<div class="foot" style="margin-top:4px">Percorso lungo la strada 1, distanze stimate. Contorni: Natural Earth.</div></div>`;
-    } catch (e) {
-      return "";
     }
-  })()}
+    if (stays.length) {
+      viaggio += `<h2>Dove dormiamo</h2><table>
+        <tr><th>Struttura</th><th>Località</th><th>Periodo</th><th class="n">Notti</th>${wantSoldi ? '<th class="n">Costo</th><th>Pagato da</th>' : "<th>Pagato da</th>"}</tr>
+        ${stays.map(s => `<tr><td>${esc(s.name) || "—"}</td><td>${esc(s.place)}</td><td>${dIt(s.checkIn)} → ${dIt(s.checkOut)}</td><td class="n">${nightsBetween(s.checkIn, s.checkOut)}</td>${wantSoldi ? `<td class="n">${cell(toBase(s.cost, s.curr))}</td>` : ""}<td>${who(s.paidBy)}</td></tr>`).join("")}
+        <tr class="tot"><td colspan="3">Totale</td><td class="n">${nights}</td>${wantSoldi ? `<td class="n">${cell(staysTot)}</td>` : ""}<td></td></tr>
+      </table>`;
+    }
+    viaggio += `<div class="box" style="margin-top:10px"><table>
+      <tr><td>Giorni di viaggio</td><td class="n">${days.length}</td></tr>
+      <tr><td>Tappe in programma</td><td class="n">${toArr(data.stops).length}</td></tr>
+      <tr class="tot"><td>Chilometri stimati</td><td class="n">${num(Math.round(totKm))} km · ${fmtMin(Math.round(totKm / 72 * 60))}</td></tr>
+    </table></div>`;
+  }
 
-    <h2>Saldo</h2>
-    <div class="box"><div style="font-size:10px;color:#6E7C80;text-transform:uppercase;letter-spacing:.04em">Conguaglio finale</div>
-      <div style="margin-top:2px">${conguaglio}</div>
-      <div class="big">${owe < 0.01 ? "" : cell(owe)}</div></div>
-    <div class="cols">${person(A, paidA, shareA)}${person(B, paidB, shareB)}</div>
-    <div class="box"><table>
-      <tr><td>Totale già pagato</td><td class="n">${cell(total)}</td></tr>
-      ${daPagare > 0 ? `<tr><td class="due">Ancora da pagare</td><td class="n due">${cell(daPagare)}</td></tr>
-      <tr><td>Quota da pagare a testa</td><td class="n">${cell(daPagare / 2)}</td></tr>` : ""}
-      <tr class="tot"><td>Costo totale viaggio</td><td class="n">${cell(total + daPagare)}</td></tr>
-    </table></div>
-
-    ${stays.length ? `<h2>Alloggi</h2><table>
-      <tr><th>Struttura</th><th>Località</th><th>Periodo</th><th class="n">Notti</th><th class="n">Costo</th><th>Pagato da</th></tr>
-      ${staysRows}
-      <tr class="tot"><td colspan="3">Totale alloggi</td><td class="n">${nights}</td><td class="n">${cell(staysTot)}</td><td></td></tr>
-    </table>` : ""}
-
-    ${exps.length ? `<h2>Spese</h2><table>
-      <tr><th class="n">Data</th><th>Descrizione</th><th>Categoria</th><th class="n">Importo</th><th>Pagato da</th></tr>
-      ${expRows}
-      <tr class="tot"><td colspan="3">Totale spese</td><td class="n">${cell(expTot)}</td><td></td></tr>
-    </table>` : ""}
-
-    ${catRows ? `<h2>Per categoria</h2><table>
-      <tr><th>Categoria</th><th class="n">Importo</th><th class="n">%</th></tr>${catRows}</table>` : ""}
-
-    <div class="foot">${curCode === "ISK" ? "Importi in corone islandesi, equivalente in euro calcolato a " + num(curRate) + " kr per 1 €. " : ""}Le quote sono calcolate secondo la divisione impostata per ogni voce.</div>
-  `;
+  /* --- sezione soldi --- */
+  let soldi = "";
+  if (wantSoldi) {
+    const person = (name, paid, share) => {
+      const net = paid - share;
+      return `<div class="box"><div style="font-weight:600;margin-bottom:4px">${esc(name)}</div>
+        <table><tr><td>Anticipato</td><td class="n">${cell(paid)}</td></tr>
+        <tr><td>Quota dovuta</td><td class="n">${cell(share)}</td></tr>
+        <tr class="tot"><td>${net >= 0 ? "A credito" : "A debito"}</td><td class="n">${cell(Math.abs(net))}</td></tr></table></div>`;
+    };
+    const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td class="n">${cell(v)}</td><td class="n">${(v / total * 100).toFixed(0)}%</td></tr>`).join("");
+    soldi += `<h2>Saldo</h2>
+      <div class="box"><div style="font-size:10px;color:#6E7C80;text-transform:uppercase;letter-spacing:.04em">Conguaglio finale</div>
+        <div style="margin-top:2px">${conguaglio}</div>
+        <div class="big">${owe < 0.01 ? "" : cell(owe)}</div></div>
+      <div class="cols">${person(A, paidA, shareA)}${person(B, paidB, shareB)}</div>
+      <div class="box"><table>
+        <tr><td>Totale già pagato</td><td class="n">${cell(total)}</td></tr>
+        ${daPagare > 0 ? `<tr><td class="due">Ancora da pagare</td><td class="n due">${cell(daPagare)}</td></tr>
+        <tr><td>Quota da pagare a testa</td><td class="n">${cell(daPagare / 2)}</td></tr>` : ""}
+        <tr class="tot"><td>Costo totale viaggio</td><td class="n">${cell(total + daPagare)}</td></tr>
+      </table></div>`;
+    if (mode === "spese" && stays.length) {
+      soldi += `<h2>Alloggi</h2><table>
+        <tr><th>Struttura</th><th>Località</th><th>Periodo</th><th class="n">Notti</th><th class="n">Costo</th><th>Pagato da</th></tr>
+        ${stays.map(s => `<tr><td>${esc(s.name) || "—"}</td><td>${esc(s.place)}</td><td>${dIt(s.checkIn)} → ${dIt(s.checkOut)}</td><td class="n">${nightsBetween(s.checkIn, s.checkOut)}</td><td class="n">${cell(toBase(s.cost, s.curr))}</td><td>${who(s.paidBy)}</td></tr>`).join("")}
+        <tr class="tot"><td colspan="3">Totale alloggi</td><td class="n">${nights}</td><td class="n">${cell(staysTot)}</td><td></td></tr>
+      </table>`;
+    }
+    if (exps.length) {
+      soldi += `<h2>Spese</h2><table>
+        <tr><th class="n">Data</th><th>Descrizione</th><th>Categoria</th><th class="n">Importo</th><th>Pagato da</th></tr>
+        ${exps.map(e => `<tr><td class="n">${dIt(e.date)}</td><td>${esc(e.description) || "—"}</td><td>${esc(e.category)}</td><td class="n">${cell(toBase(e.amount, e.curr))}</td><td>${who(e.paidBy)}</td></tr>`).join("")}
+        <tr class="tot"><td colspan="3">Totale spese</td><td class="n">${cell(expTot)}</td><td></td></tr>
+      </table>`;
+    }
+    if (catRows) soldi += `<h2>Per categoria</h2><table>
+      <tr><th>Categoria</th><th class="n">Importo</th><th class="n">%</th></tr>${catRows}</table>`;
+  }
+  const foot = `<div class="foot">${curCode === "ISK" ? "Importi in corone islandesi, equivalente in euro calcolato a " + num(curRate) + " kr per 1 €. " : ""}${wantViaggio ? "Le distanze seguono la strada 1 e sono stime finché non vengono calcolate nell'Itinerario. " : ""}${wantSoldi ? "Le quote sono calcolate secondo la divisione impostata per ogni voce." : ""}</div>`;
+  return head + viaggio + (wantViaggio && wantSoldi ? '<div class="pagebreak"></div>' : "") + soldi + foot;
 }
 function Report({
   data,
   A,
-  B
+  B,
+  mode
 }) {
   return /*#__PURE__*/React.createElement("div", {
     id: "report",
     dangerouslySetInnerHTML: {
-      __html: buildReport(data, A, B)
+      __html: buildReport(data, A, B, mode)
     }
   });
 }
+
 ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));
 </script>
 <script>
