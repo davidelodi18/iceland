@@ -237,7 +237,8 @@ const DEFAULT_CATS = ["Alloggio", "Trasporti", "Carburante", "Cibo", "Attività"
    Importi in EUR, indipendenti dalla valuta base impostata.
    ============================================================ */
 const SEED_ID = "xls-2026-08-v1";
-const STOPS_ID = "pdf-itinerario-v2";
+const STOPS_ID = "pdf-itinerario-v3";
+const BUILD = "18 ago 2026";
 const SEED_DAYS = {
   "2026-08-19": { title: "Arrivo a Reykjavík" },
   "2026-08-20": { title: "Golden Circle" },
@@ -322,11 +323,25 @@ const SEED = {
   },
   categories: ["Alloggio", "Volo", "Trasporti", "Carburante", "Cibo", "Attività", "Spesa", "Assicurazione", "Altro"]
 };
-function applyStopsSeed(d) {
+/* toglie le vecchie tappe "una per giornata" (non hanno il campo day) */
+function cleanLegacyStops(d) {
+  const stops = d.stops || {};
   const keep = {};
-  Object.entries(d.stops || {}).forEach(([k, v]) => {
-    if (!/^it_d\d+$/.test(k)) keep[k] = v;
+  let dropped = 0;
+  Object.entries(stops).forEach(([k, v]) => {
+    if (!v || !v.day || /^it_d\d+$/.test(k)) {
+      dropped++;
+      return;
+    }
+    keep[k] = v;
   });
+  return dropped ? {
+    ...d,
+    stops: keep
+  } : d;
+}
+function applyStopsSeed(d) {
+  const keep = cleanLegacyStops(d).stops || {};
   return {
     ...d,
     stops: {
@@ -444,6 +459,9 @@ function App() {
       if (next.seeded !== SEED_ID) next = applySeed(next);
       if (next.stopsSeeded !== STOPS_ID) next = applyStopsSeed(next);
       commit(next);
+    } else {
+      const cleaned = cleanLegacyStops(data);
+      if (cleaned !== data) commit(cleaned);
     }
   }, [data]);
   const patch = part => commit({
@@ -940,7 +958,9 @@ function DayBlock({
     className: "block font-display text-[17px] text-moss leading-tight"
   }, dayLabel(day), title ? " · " + title : ""), /*#__PURE__*/React.createElement("span", {
     className: "block text-[12px] text-mute mt-0.5"
-  }, stops.length, stops.length === 1 ? " tappa" : " tappe", km > 0 ? " · ≈ " + num(Math.round(km)) + " km" : ""), night && /*#__PURE__*/React.createElement("span", {
+  }, stops.length, stops.length === 1 ? " tappa" : " tappe", km > 0 ? " · ≈ " + num(Math.round(km)) + " km" : ""), !open && stops.length > 0 && /*#__PURE__*/React.createElement("span", {
+    className: "block text-[12px] text-slate mt-0.5 truncate"
+  }, stops.map(s => s.name || s.place).join(" · ")), night && /*#__PURE__*/React.createElement("span", {
     className: "block text-[12px] text-slate mt-0.5"
   }, "Pernotto: ", night.name || night.place)), /*#__PURE__*/React.createElement("span", {
     className: "text-mute text-[12px] mt-1"
@@ -1188,19 +1208,25 @@ function Alloggi({
     onUpdate: p => upd(s.id, p),
     onRemove: () => del(s.id)
   })), stays.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "mt-2 grid gap-3 " + (totDaPagare > 0 ? "grid-cols-3" : "grid-cols-2")
+    className: "mt-2 grid gap-3 " + (totDaPagare > 0 ? "grid-cols-5" : "grid-cols-3")
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "col-span-2 min-w-0"
   }, /*#__PURE__*/React.createElement(Stat, {
     label: "Costo alloggi",
     value: money(totCost),
     sub: curCode === "ISK" ? "≈ " + moneyIn(totCost / curRate, "EUR") : undefined
-  }), totDaPagare > 0 && /*#__PURE__*/React.createElement(Stat, {
+  })), totDaPagare > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "col-span-2 min-w-0"
+  }, /*#__PURE__*/React.createElement(Stat, {
     label: "Da pagare",
     value: money(totDaPagare),
     sub: curCode === "ISK" ? "≈ " + moneyIn(totDaPagare / curRate, "EUR") : undefined
-  }), /*#__PURE__*/React.createElement(Stat, {
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "col-span-1 min-w-0"
+  }, /*#__PURE__*/React.createElement(Stat, {
     label: "Notti",
     value: `${totNights}`
-  })));
+  }))));
 }
 function StayCard({
   s,
@@ -2304,7 +2330,9 @@ function Settings({
       }
     },
     className: "w-full mt-2 rounded-xl border border-hair bg-card py-2.5 text-[12px] text-slate"
-  }, "Reimporta dati Excel"), !firebaseEnabled && /*#__PURE__*/React.createElement("p", {
+  }, "Reimporta dati Excel"), /*#__PURE__*/React.createElement("p", {
+    className: "text-[11px] text-mute mt-3 text-center"
+  }, "Versione ", BUILD, " · ", toArr(data.stops).length, " tappe, ", dayList(data).length, " giorni"), !firebaseEnabled && /*#__PURE__*/React.createElement("p", {
     className: "text-[11px] text-copper mt-3 leading-snug"
   }, "Modalità locale attiva. Per sincronizzare tra due telefoni, incolla la config Firebase in alto nel file.")));
 }
@@ -2513,14 +2541,16 @@ function Stat({
   value,
   sub
 }) {
+  const n = String(value == null ? "" : value).length;
+  const size = n > 13 ? "text-[13px]" : n > 10 ? "text-[15px]" : n > 8 ? "text-[16px]" : "text-[18px]";
   return /*#__PURE__*/React.createElement("div", {
-    className: "bg-card border border-hair rounded-2xl px-4 py-3"
+    className: "bg-card border border-hair rounded-2xl px-3 py-3 min-w-0 overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "text-[11px] text-mute uppercase tracking-wide"
+    className: "text-[10px] text-mute uppercase tracking-wide leading-tight"
   }, label), /*#__PURE__*/React.createElement("div", {
-    className: "font-mono text-[18px] text-moss mt-0.5"
+    className: "font-mono text-moss mt-1 leading-tight whitespace-nowrap " + size
   }, value), sub && /*#__PURE__*/React.createElement("div", {
-    className: "font-mono text-[11px] text-mute mt-0.5"
+    className: "font-mono text-[10px] text-mute mt-0.5 whitespace-nowrap"
   }, sub));
 }
 function Empty({
@@ -2861,8 +2891,9 @@ function buildMapSVG(data, opts) {
       y = mLat(g.lat);
     g.x = x;
     g.y = y;
-    g.t1 = g.nums.join("·") + ". " + g.label;
-    g.t2 = g.subs.join(" · ");
+    g.tag = g.nums.length > 3 ? g.nums[0] + "·…·" + g.nums[g.nums.length - 1] : g.nums.join("·");
+    g.t1 = g.tag + ". " + g.label;
+    g.t2 = g.subs.slice(0, 2).join(" · ");
     const w = Math.max(g.t1.length * 7.6, g.t2.length * 6.6) + 16;
     const h = g.t2 ? 34 : 22;
     const cands = [[16, -h / 2], [-w - 16, -h / 2], [12, 12], [-w - 12, 12], [12, -h - 14], [-w - 12, -h - 14], [-w / 2, -h - 18], [-w / 2, 18]];
@@ -2899,12 +2930,7 @@ function buildMapSVG(data, opts) {
         if (box) break;
       }
     }
-    if (!box) box = {
-      x: Math.min(Math.max(4, x + 16), MAPW - w - 4),
-      y: Math.min(Math.max(4, y - h / 2), 700 - h),
-      w,
-      h
-    };
+    if (!box) return; // nessuno spazio libero: lascio solo il pin numerato
     boxes.push(box);
     g.box = box;
   });
@@ -3045,6 +3071,7 @@ function buildMapSVG(data, opts) {
   // etichette tappe
   groups.forEach(g => {
     const box = g.box;
+    if (!box) return;
     const lx = box.x < g.x ? box.x + box.w : box.x;
     s += `<line x1="${g.x.toFixed(1)}" y1="${g.y.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${(box.y + box.h / 2).toFixed(1)}" stroke="#B4552E" stroke-width="1.3" opacity=".6"/>`;
     s += `<rect x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h}" rx="6" fill="#FFFFFF" opacity=".94" stroke="#D3D8D9"/>`;
@@ -3055,8 +3082,8 @@ function buildMapSVG(data, opts) {
   groups.forEach(g => {
     const x = g.x.toFixed(1),
       y = g.y.toFixed(1);
-    const t = g.nums.join("·");
-    const r = 11.5 + (t.length - 1) * 2.2;
+    const t = g.tag;
+    const r = Math.min(11.5 + (t.length - 1) * 2.2, 20);
     s += `<circle cx="${x}" cy="${y}" r="${(r + 1.6).toFixed(1)}" fill="#FFFFFF"/>
       <circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="${g.unpaid ? "#B4552E" : "#274A57"}"/>
       <text x="${x}" y="${(+y + 4.5).toFixed(1)}" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">${t}</text>`;
