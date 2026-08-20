@@ -410,25 +410,57 @@ function App() {
   const [data, setData] = useState(firebaseEnabled && dbRef ? null : loadLocal());
   const [tab, setTab] = useState("itinerario");
   const [showSettings, setShowSettings] = useState(false);
+  const [live, setLive] = useState(false); // true = dati arrivati dal server
+  const [offline, setOffline] = useState(false); // true = sto usando la copia locale
+  const [syncErr, setSyncErr] = useState(""); // messaggio di errore del database
   useEffect(() => {
     if (!firebaseEnabled || !dbRef) {
       return;
     }
     const cb = dbRef.on("value", snap => {
       const v = snap.val();
-      setData(v ? {
+      const next = v ? {
         ...EMPTY,
         ...v
-      } : EMPTY);
+      } : EMPTY;
+      setData(next);
+      setLive(true);
+      setOffline(false);
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify(next));
+      } catch (e) {}
+    }, err => {
+      setData(d => d === null ? loadLocal() : d);
+      setOffline(true);
+      setSyncErr(err && err.message ? String(err.message) : "Il database non risponde");
     });
-    return () => dbRef.off("value", cb);
+    // se il server non risponde entro pochi secondi mostro comunque la copia locale
+    const t = setTimeout(() => {
+      setData(d => {
+        if (d !== null) return d;
+        setOffline(true);
+        return loadLocal();
+      });
+    }, 5000);
+    let connRef = null,
+      connCb = null;
+    try {
+      connRef = firebase.database().ref(".info/connected");
+      connCb = connRef.on("value", snap => setOffline(!snap.val()));
+    } catch (e) {}
+    return () => {
+      clearTimeout(t);
+      dbRef.off("value", cb);
+      if (connRef && connCb) connRef.off("value", connCb);
+    };
   }, []);
   function commit(next) {
     setData(next);
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(next));
+    } catch (e) {}
     if (firebaseEnabled && dbRef) {
       dbRef.set(next).catch(e => console.error(e));
-    } else {
-      localStorage.setItem(LS_KEY, JSON.stringify(next));
     }
   }
   const seedRef = useRef(false);
@@ -453,6 +485,7 @@ function App() {
   }, [printMode]);
   useEffect(() => {
     if (data === null || seedRef.current) return;
+    if (firebaseEnabled && dbRef && !live) return; // aspetto i dati veri prima di toccare nulla
     seedRef.current = true;
     if (data.seeded !== SEED_ID || data.stopsSeeded !== STOPS_ID) {
       let next = data;
@@ -463,15 +496,17 @@ function App() {
       const cleaned = cleanLegacyStops(data);
       if (cleaned !== data) commit(cleaned);
     }
-  }, [data]);
+  }, [data, live]);
   const patch = part => commit({
     ...data,
     ...part
   });
   if (data === null) {
     return /*#__PURE__*/React.createElement("div", {
-      className: "min-h-screen flex items-center justify-center text-mute font-sans"
-    }, "Connessione…");
+      className: "min-h-screen flex flex-col items-center justify-center gap-3 text-mute font-sans px-8 text-center"
+    }, /*#__PURE__*/React.createElement("div", null, "Connessione…"), /*#__PURE__*/React.createElement("div", {
+      className: "text-[12px]"
+    }, "Se la rete è lenta apro la copia salvata sul telefono."));
   }
   const s = data.settings || EMPTY.settings;
   setCurrency(s.currency || "ISK"); // aggiorna la valuta prima che i figli renderizzino
@@ -481,10 +516,12 @@ function App() {
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     id: "app-ui",
     className: "min-h-screen font-sans text-ink pb-28"
-  }, /*#__PURE__*/React.createElement(Header, {
+  }, syncErr && /*#__PURE__*/React.createElement("div", {
+    className: "bg-copper/10 border-b border-copper/25 px-4 py-2 text-[12px] text-copper"
+  }, /*#__PURE__*/React.createElement("b", null, "Database non raggiungibile."), " ", /^permission/i.test(syncErr) ? "Il database ha rifiutato l'accesso: nella console Firebase, Realtime Database → Regole, le regole di prova sono probabilmente scadute." : syncErr, " Intanto stai usando la copia salvata sul telefono: le modifiche restano qui e si sincronizzano quando torna."), /*#__PURE__*/React.createElement(Header, {
     s: s,
     onSettings: () => setShowSettings(true),
-    online: firebaseEnabled && !!dbRef
+    online: firebaseEnabled && !!dbRef && !offline
   }), /*#__PURE__*/React.createElement("main", {
     className: "max-w-2xl mx-auto px-4"
   }, tab === "itinerario" && /*#__PURE__*/React.createElement(Itinerario, {
@@ -567,7 +604,7 @@ function Header({
     className: "text-[11px] text-mute -mt-0.5 flex items-center gap-1.5"
   }, /*#__PURE__*/React.createElement("span", {
     className: "inline-block w-1.5 h-1.5 rounded-full " + (online ? "bg-moss2" : "bg-copper")
-  }), online ? "Sincronizzato" : "Solo su questo dispositivo"))), /*#__PURE__*/React.createElement("button", {
+  }), online ? "Sincronizzato" : firebaseEnabled ? "Offline · copia locale" : "Solo su questo dispositivo"))), /*#__PURE__*/React.createElement("button", {
     onClick: onSettings,
     className: "p-2 -mr-1 text-slate active:scale-95 transition",
     "aria-label": "Impostazioni"
