@@ -1488,6 +1488,8 @@ function Spese({
   const cats = data.categories && data.categories.length ? data.categories : DEFAULT_CATS;
   const [adding, setAdding] = useState(false);
   const [manage, setManage] = useState(false);
+  const [fPaid, setFPaid] = useState("all");
+  const [fCat, setFCat] = useState("all");
   const add = v => {
     commit({
       ...data,
@@ -1542,14 +1544,22 @@ function Spese({
     amount: toBase(s.cost, s.curr),
     _base: toBase(s.cost, s.curr)
   }));
-  const list = [...expItems, ...stayItems].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const all = [...expItems, ...stayItems].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.description || "").localeCompare(a.description || ""));
+  const usedCats = cats.filter(c => all.some(i => (i.category || "Altro") === c));
+  const list = all.filter(i => (fPaid === "all" || (i.paidBy || "A") === fPaid) && (fCat === "all" || (i.category || "Altro") === fCat));
   const tot = list.reduce((t, i) => t + (i.paidBy === "none" ? 0 : Number(i._base) || 0), 0);
   const totDaPagare = list.reduce((t, i) => t + (i.paidBy === "none" ? Number(i._base) || 0 : 0), 0);
+  const filtered = fPaid !== "all" || fCat !== "all";
+  const chip = (on, label, onClick, key) => /*#__PURE__*/React.createElement("button", {
+    key: key,
+    onClick: onClick,
+    className: "shrink-0 px-3 py-1.5 rounded-full text-[12px] border transition " + (on ? "bg-moss text-card border-moss" : "bg-card text-slate border-hair")
+  }, label);
   return /*#__PURE__*/React.createElement("div", {
     className: "py-5 fade"
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     title: "Spese",
-    note: withEur(tot)
+    note: withEur(tot) + (filtered ? " · " + list.length + " di " + all.length : "")
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 mb-4"
   }, /*#__PURE__*/React.createElement("button", {
@@ -1558,7 +1568,19 @@ function Spese({
   }, "+ Spesa"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setManage(true),
     className: "px-4 text-[13px] font-medium rounded-xl border border-hair bg-card text-slate py-2.5 active:scale-[.99] transition"
-  }, "Categorie")), adding && /*#__PURE__*/React.createElement(ExpenseForm, {
+  }, "Categorie")), all.length > 1 && /*#__PURE__*/React.createElement("div", {
+    className: "mb-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 overflow-x-auto pb-2",
+    style: {
+      WebkitOverflowScrolling: "touch"
+    }
+  }, chip(fPaid === "all", "Tutti", () => setFPaid("all"), "p-all"), chip(fPaid === "A", A, () => setFPaid("A"), "p-a"), chip(fPaid === "B", B, () => setFPaid("B"), "p-b"), all.some(i => i.paidBy === "none") && chip(fPaid === "none", "Da pagare", () => setFPaid("none"), "p-none")), usedCats.length > 1 && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 overflow-x-auto pb-1",
+    style: {
+      WebkitOverflowScrolling: "touch"
+    }
+  }, chip(fCat === "all", "Tutte le categorie", () => setFCat("all"), "c-all"), usedCats.map(c => chip(fCat === c, c, () => setFCat(c), "c-" + c)))), adding && /*#__PURE__*/React.createElement(ExpenseForm, {
     A: A,
     B: B,
     cats: cats,
@@ -1566,7 +1588,7 @@ function Spese({
     onSave: add,
     onCancel: () => setAdding(false)
   }), list.length === 0 && !adding && /*#__PURE__*/React.createElement(Empty, {
-    text: "Ancora nessuna spesa registrata."
+    text: filtered ? "Nessuna spesa con questi filtri." : "Ancora nessuna spesa registrata."
   }), list.map(i => i._type === "stay" ? /*#__PURE__*/React.createElement(StayExpenseRow, {
     key: "s" + i.id,
     it: i,
